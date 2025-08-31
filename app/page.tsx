@@ -16,11 +16,11 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-800 to-purple-400 flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-b from-[#3F00A8] via-[#5B4BDE] to-[#5AA0FF] flex flex-col items-center justify-center p-4">
       {/* Logo */}
       <div className="mb-8">
         <div className="flex items-center gap-2 text-white">
-          <img src="/icons/zynovapp-icon.png" alt="Zynovapp" className="h-8 w-auto" />
+          <img src="/icons/zynovapp-icon-login.png" alt="Zynovapp" className="h-8 w-auto" />
         </div>
       </div>
 
