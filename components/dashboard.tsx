@@ -342,9 +342,12 @@ export function Dashboard() {
                     </CardContent>
                   </Card>
                   {/* Banner Promocional: solo imagen dentro de la card */}
-                  <Card className="overflow-hidden">
+                  <Card className="overflow-hidden p-0">
                     <CardContent className="p-0">
-                      <img src="/images/promotional.png" alt="Promoción" className="w-full h-auto object-cover" />
+                      <div
+                        className="w-full h-56 sm:h-64 md:h-72 bg-center bg-cover"
+                        style={{ backgroundImage: "url('/images/promotional.png')" }}
+                      />
                     </CardContent>
                   </Card>
                 </div>
