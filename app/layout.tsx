@@ -6,7 +6,10 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'Zynovapp',
-  description: 'Zynovapp'
+  description: 'Zynovapp',
+  icons: {
+    icon: '/icons/zynovapp.svg',
+  },
 }
 
 export default function RootLayout({
