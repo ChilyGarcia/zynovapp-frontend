@@ -1,10 +1,12 @@
 "use client"
 
 import type React from "react"
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import NavbarComponent from "@/components/navbar/navbar-component"
 import FooterComponent from "@/components/footer/footer-component"
 import {
@@ -24,10 +26,20 @@ import {
 } from "lucide-react"
 
 export default function LabsPage() {
+  // Modo: "analisis" (flujo actual) o "registro" (nuevo flujo)
+  const [mode, setMode] = useState<"analisis" | "registro">("analisis")
+
+  // Estado para modo análisis (flujo existente)
   const [step, setStep] = useState(1)
   const [selectedExam, setSelectedExam] = useState<string | null>(null)
   const [file, setFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+
+  // Estado para modo registro (nuevo flujo)
+  const [regStep, setRegStep] = useState(1)
+  const [regSelectedExam, setRegSelectedExam] = useState<string | null>(null)
+  const [regValues, setRegValues] = useState<Record<string, string>>({})
+  const [showRegSuccess, setShowRegSuccess] = useState(false)
 
   const exams = useMemo(
     () => [
@@ -57,6 +69,33 @@ export default function LabsPage() {
   const goBack = useCallback(() => {
     setStep((s) => Math.max(1, s - 1))
   }, [])
+
+  // Registro: navegación
+  const regNext = useCallback(() => {
+    if (regStep === 2 && !regSelectedExam) return
+    setRegStep((s) => Math.min(3, s + 1))
+  }, [regStep, regSelectedExam])
+
+  const regBack = useCallback(() => {
+    setRegStep((s) => Math.max(1, s - 1))
+  }, [])
+
+  // Resetear estados al cambiar el modo
+  useEffect(() => {
+    if (mode === "analisis") {
+      setStep(1)
+      setSelectedExam(null)
+      setFile(null)
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl)
+        setPreviewUrl(null)
+      }
+    } else {
+      setRegStep(1)
+      setRegSelectedExam(null)
+      setRegValues({})
+    }
+  }, [mode])
 
   return (
     <div className="min-h-screen bg-[#F5F3FF] flex flex-col">
@@ -99,158 +138,301 @@ export default function LabsPage() {
             <div className="max-w-7xl mx-auto">
               <div className="mb-6">
                 <h1 className="text-2xl font-semibold text-gray-900 mb-1">Análisis de Laboratorios</h1>
-                <p className="text-gray-600">Selecciona el examen, sube tu archivo y revisa resultados simulados.</p>
+                <p className="text-gray-600">Selecciona el flujo: Análisis (actual) o Registro (nuevo).</p>
               </div>
+              {/* Selector de modo */}
+              <Tabs value={mode} onValueChange={(v) => setMode(v as "analisis" | "registro")} className="mb-6">
+                <TabsList>
+                  <TabsTrigger value="analisis">Análisis (actual)</TabsTrigger>
+                  <TabsTrigger value="registro">Registro de laboratorio</TabsTrigger>
+                </TabsList>
 
-              {/* Stepper */}
-              <div className="mb-6">
-                <Stepper step={step} />
-              </div>
+                {/* Modo Análisis: flujo existente, intacto */}
+                <TabsContent value="analisis" className="mt-4">
+                  <div className="mb-6">
+                    <Stepper step={step} labels={["Examen", "Archivo", "Resultados"]} />
+                  </div>
 
-              {/* Steps */}
-              {step === 1 && (
-                <Card className="rounded-2xl border border-purple-100 shadow-sm">
-                  <CardContent className="p-6">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4">1. Selecciona el tipo de examen</h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {exams.map((ex) => (
-                        <button
-                          key={ex.id}
-                          onClick={() => setSelectedExam(ex.id)}
-                          className={`w-full text-left p-4 rounded-xl border transition-all ${
-                            selectedExam === ex.id
-                              ? "border-purple-500 bg-purple-50 shadow-sm"
-                              : "border-gray-200 hover:border-gray-300 bg-white"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-gray-900">{ex.label}</span>
-                            {selectedExam === ex.id ? (
-                              <CheckCircle2 className="w-5 h-5 text-purple-600" />
-                            ) : (
-                              <ChevronRight className="w-5 h-5 text-gray-300" />
-                            )}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="mt-6 flex justify-end gap-3">
-                      <Button variant="outline" disabled>
-                        Atrás
-                      </Button>
-                      <Button onClick={goNext} disabled={!selectedExam} className="bg-purple-600 hover:bg-purple-700 text-white">
-                        Siguiente
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {step === 2 && (
-                <Card className="rounded-2xl border border-purple-100 shadow-sm">
-                  <CardContent className="p-6">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-2">2. Sube el archivo del examen</h2>
-                    <p className="text-sm text-gray-600 mb-4">Acepta imágenes o PDF. Arrastra y suelta, o haz clic para seleccionar.</p>
-
-                    <label
-                      htmlFor="labs-file"
-                      className="group block rounded-2xl border-2 border-dashed border-purple-200 bg-gradient-to-b from-white to-purple-50/50 hover:from-white hover:to-purple-100 transition-colors p-8 cursor-pointer"
-                    >
-                      <div className="flex flex-col items-center text-center">
-                        <div className="w-12 h-12 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-                          <Upload className="w-6 h-6" />
-                        </div>
-                        <p className="text-sm text-gray-800 font-medium">Arrastra tu archivo aquí</p>
-                        <p className="text-xs text-gray-500">o haz clic para buscar en tu dispositivo</p>
-                      </div>
-                      <Input id="labs-file" type="file" accept="image/*,.pdf" onChange={handleFileChange} className="hidden" />
-                    </label>
-
-                    {file && (
-                      <div className="mt-4 flex items-center gap-4">
-                        <div className="flex-1 rounded-xl border border-gray-200 bg-white p-4">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">{file.name}</p>
-                              <p className="text-xs text-gray-500">{Math.round(file.size / 1024)} KB</p>
-                            </div>
-                            <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">Listo</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {previewUrl && file && file.type.startsWith("image/") && (
-                      <div className="mt-4">
-                        <img src={previewUrl} alt="Vista previa" className="max-h-64 rounded-xl border border-gray-200 shadow-sm" />
-                      </div>
-                    )}
-
-                    <div className="mt-6 flex justify-between gap-3">
-                      <Button variant="outline" onClick={goBack}>
-                        Atrás
-                      </Button>
-                      <div className="flex gap-3">
-                        <Button variant="outline" onClick={() => { setFile(null); if (previewUrl) { URL.revokeObjectURL(previewUrl); setPreviewUrl(null) }}}>
-                          Limpiar
-                        </Button>
-                        <Button onClick={goNext} disabled={!file} className="bg-purple-600 hover:bg-purple-700 text-white">
-                          Analizar
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {step === 3 && (
-                <Card className="rounded-2xl border border-purple-100 shadow-sm">
-                  <CardContent className="p-6">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-2">3. Resultados simulados</h2>
-                    <p className="text-sm text-gray-600 mb-6">
-                      Examen seleccionado: <span className="font-medium text-gray-900">{labelForExam(selectedExam, exams)}</span>
-                    </p>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                      <div className="lg:col-span-2 rounded-xl border border-gray-200 bg-white p-4">
-                        <h3 className="text-sm font-semibold text-gray-900 mb-3">Parámetros principales</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {mockResults(selectedExam).map((r) => (
-                            <div key={r.name} className="rounded-lg border border-gray-100 p-3">
+                  {step === 1 && (
+                    <Card className="rounded-2xl border border-purple-100 shadow-sm">
+                      <CardContent className="p-6">
+                        <h2 className="text-lg font-semibold text-gray-900 mb-4">1. Selecciona el tipo de examen</h2>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {exams.map((ex) => (
+                            <button
+                              key={ex.id}
+                              onClick={() => setSelectedExam(ex.id)}
+                              className={`w-full text-left p-4 rounded-xl border transition-all ${
+                                selectedExam === ex.id
+                                  ? "border-purple-500 bg-purple-50 shadow-sm"
+                                  : "border-gray-200 hover:border-gray-300 bg-white"
+                              }`}
+                            >
                               <div className="flex items-center justify-between">
-                                <span className="text-sm text-gray-600">{r.name}</span>
-                                <span className={`text-xs px-2 py-0.5 rounded-full ${r.flag === "alto" ? "bg-red-50 text-red-600" : r.flag === "bajo" ? "bg-yellow-50 text-yellow-700" : "bg-green-50 text-green-700"}`}>
-                                  {r.flag}
-                                </span>
+                                <span className="text-sm font-medium text-gray-900">{ex.label}</span>
+                                {selectedExam === ex.id ? (
+                                  <CheckCircle2 className="w-5 h-5 text-purple-600" />
+                                ) : (
+                                  <ChevronRight className="w-5 h-5 text-gray-300" />
+                                )}
                               </div>
-                              <div className="mt-1">
-                                <span className="text-sm font-medium text-gray-900">{r.value}</span>
-                                <span className="text-xs text-gray-500 ml-2">Ref: {r.ref}</span>
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="mt-6 flex justify-end gap-3">
+                          <Button variant="outline" disabled>
+                            Atrás
+                          </Button>
+                          <Button onClick={goNext} disabled={!selectedExam} className="bg-purple-600 hover:bg-purple-700 text-white">
+                            Siguiente
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {step === 2 && (
+                    <Card className="rounded-2xl border border-purple-100 shadow-sm">
+                      <CardContent className="p-6">
+                        <h2 className="text-lg font-semibold text-gray-900 mb-2">2. Sube el archivo del examen</h2>
+                        <p className="text-sm text-gray-600 mb-4">Acepta imágenes o PDF. Arrastra y suelta, o haz clic para seleccionar.</p>
+
+                        <label
+                          htmlFor="labs-file"
+                          className="group block rounded-2xl border-2 border-dashed border-purple-200 bg-gradient-to-b from-white to-purple-50/50 hover:from-white hover:to-purple-100 transition-colors p-8 cursor-pointer"
+                        >
+                          <div className="flex flex-col items-center text-center">
+                            <div className="w-12 h-12 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                              <Upload className="w-6 h-6" />
+                            </div>
+                            <p className="text-sm text-gray-800 font-medium">Arrastra tu archivo aquí</p>
+                            <p className="text-xs text-gray-500">o haz clic para buscar en tu dispositivo</p>
+                          </div>
+                          <Input id="labs-file" type="file" accept="image/*,.pdf" onChange={handleFileChange} className="hidden" />
+                        </label>
+
+                        {file && (
+                          <div className="mt-4 flex items-center gap-4">
+                            <div className="flex-1 rounded-xl border border-gray-200 bg-white p-4">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="text-sm font-medium text-gray-900">{file.name}</p>
+                                  <p className="text-xs text-gray-500">{Math.round(file.size / 1024)} KB</p>
+                                </div>
+                                <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">Listo</span>
                               </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {previewUrl && file && file.type.startsWith("image/") && (
+                          <div className="mt-4">
+                            <img src={previewUrl} alt="Vista previa" className="max-h-64 rounded-xl border border-gray-200 shadow-sm" />
+                          </div>
+                        )}
+
+                        <div className="mt-6 flex justify-between gap-3">
+                          <Button variant="outline" onClick={goBack}>
+                            Atrás
+                          </Button>
+                          <div className="flex gap-3">
+                            <Button variant="outline" onClick={() => { setFile(null); if (previewUrl) { URL.revokeObjectURL(previewUrl); setPreviewUrl(null) }}}>
+                              Limpiar
+                            </Button>
+                            <Button onClick={goNext} disabled={!file} className="bg-purple-600 hover:bg-purple-700 text-white">
+                              Analizar
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {step === 3 && (
+                    <Card className="rounded-2xl border border-purple-100 shadow-sm">
+                      <CardContent className="p-6">
+                        <h2 className="text-lg font-semibold text-gray-900 mb-2">3. Resultados simulados</h2>
+                        <p className="text-sm text-gray-600 mb-6">
+                          Examen seleccionado: <span className="font-medium text-gray-900">{labelForExam(selectedExam, exams)}</span>
+                        </p>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                          <div className="lg:col-span-2 rounded-xl border border-gray-200 bg-white p-4">
+                            <h3 className="text-sm font-semibold text-gray-900 mb-3">Parámetros principales</h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              {mockResults(selectedExam).map((r) => (
+                                <div key={r.name} className="rounded-lg border border-gray-100 p-3">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-sm text-gray-600">{r.name}</span>
+                                    <span className={`text-xs px-2 py-0.5 rounded-full ${r.flag === "alto" ? "bg-red-50 text-red-600" : r.flag === "bajo" ? "bg-yellow-50 text-yellow-700" : "bg-green-50 text-green-700"}`}>
+                                      {r.flag}
+                                    </span>
+                                  </div>
+                                  <div className="mt-1">
+                                    <span className="text-sm font-medium text-gray-900">{r.value}</span>
+                                    <span className="text-xs text-gray-500 ml-2">Ref: {r.ref}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="rounded-xl border border-gray-200 bg-white p-4">
+                            <h3 className="text-sm font-semibold text-gray-900 mb-3">Conclusión</h3>
+                            <p className="text-sm text-gray-700 leading-relaxed">
+                              {mockConclusion(selectedExam)}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mt-6 flex justify-between gap-3">
+                          <Button variant="outline" onClick={goBack}>
+                            Atrás
+                          </Button>
+                          <Button className="bg-gray-900 hover:bg-black text-white" onClick={() => { setStep(1); setSelectedExam(null); setFile(null); if (previewUrl) { URL.revokeObjectURL(previewUrl); setPreviewUrl(null) } }}>
+                            Nuevo análisis
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </TabsContent>
+
+                {/* Modo Registro: nuevo flujo */}
+                <TabsContent value="registro" className="mt-4">
+                  <div className="mb-6">
+                    <Stepper step={regStep} labels={["Registro", "Examen", "Campos"]} />
+                  </div>
+
+                  {regStep === 1 && (
+                    <Card className="rounded-2xl border border-purple-100 shadow-sm">
+                      <CardContent className="p-6">
+                        <h2 className="text-lg font-semibold text-gray-900 mb-2">1. Hacer registro de laboratorio</h2>
+                        <p className="text-sm text-gray-600 mb-6">Registra manualmente resultados de un examen de laboratorio.</p>
+
+                        <div className="rounded-xl border border-gray-200 bg-white p-4">
+                          <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
+                            <li>Completa datos en el siguiente paso según el tipo de examen.</li>
+                            <li>No necesitas subir archivo en este flujo.</li>
+                          </ul>
+                        </div>
+
+                        <div className="mt-6 flex justify-end gap-3">
+                          <Button variant="outline" disabled>
+                            Atrás
+                          </Button>
+                          <Button onClick={regNext} className="bg-purple-600 hover:bg-purple-700 text-white">
+                            Siguiente
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {regStep === 2 && (
+                    <Card className="rounded-2xl border border-purple-100 shadow-sm">
+                      <CardContent className="p-6">
+                        <h2 className="text-lg font-semibold text-gray-900 mb-4">2. Selecciona el tipo de examen</h2>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {exams.map((ex) => (
+                            <button
+                              key={ex.id}
+                              onClick={() => setRegSelectedExam(ex.id)}
+                              className={`w-full text-left p-4 rounded-xl border transition-all ${
+                                regSelectedExam === ex.id
+                                  ? "border-purple-500 bg-purple-50 shadow-sm"
+                                  : "border-gray-200 hover:border-gray-300 bg-white"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium text-gray-900">{ex.label}</span>
+                                {regSelectedExam === ex.id ? (
+                                  <CheckCircle2 className="w-5 h-5 text-purple-600" />
+                                ) : (
+                                  <ChevronRight className="w-5 h-5 text-gray-300" />
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="mt-6 flex justify-between gap-3">
+                          <Button variant="outline" onClick={regBack}>
+                            Atrás
+                          </Button>
+                          <Button onClick={regNext} disabled={!regSelectedExam} className="bg-purple-600 hover:bg-purple-700 text-white">
+                            Siguiente
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {regStep === 3 && (
+                    <Card className="rounded-2xl border border-purple-100 shadow-sm">
+                      <CardContent className="p-6">
+                        <h2 className="text-lg font-semibold text-gray-900 mb-2">3. Campos del examen</h2>
+                        <p className="text-sm text-gray-600 mb-6">
+                          Examen: <span className="font-medium text-gray-900">{labelForExam(regSelectedExam, exams)}</span>
+                        </p>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {formFieldsForExam(regSelectedExam).map((f) => (
+                            <div key={f.key} className="space-y-1.5">
+                              <label className="text-xs text-gray-600" htmlFor={f.key}>{f.label}</label>
+                              <Input
+                                id={f.key}
+                                placeholder={f.placeholder}
+                                value={regValues[f.key] ?? ""}
+                                onChange={(e) => setRegValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                              />
                             </div>
                           ))}
                         </div>
-                      </div>
-                      <div className="rounded-xl border border-gray-200 bg-white p-4">
-                        <h3 className="text-sm font-semibold text-gray-900 mb-3">Conclusión</h3>
-                        <p className="text-sm text-gray-700 leading-relaxed">
-                          {mockConclusion(selectedExam)}
-                        </p>
-                      </div>
-                    </div>
 
-                    <div className="mt-6 flex justify-between gap-3">
-                      <Button variant="outline" onClick={goBack}>
-                        Atrás
-                      </Button>
-                      <Button className="bg-gray-900 hover:bg-black text-white" onClick={() => { setStep(1); setSelectedExam(null); setFile(null); if (previewUrl) { URL.revokeObjectURL(previewUrl); setPreviewUrl(null) } }}>
-                        Nuevo análisis
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+                        <div className="mt-6 flex justify-between gap-3">
+                          <Button variant="outline" onClick={regBack}>
+                            Atrás
+                          </Button>
+                          <div className="flex gap-3">
+                            <Button variant="outline" onClick={() => setRegValues({})}>Limpiar</Button>
+                            <Button
+                              className="bg-purple-600 hover:bg-purple-700 text-white"
+                              onClick={() => {
+                                // Simular guardado
+                                console.log("Registro guardado", { examen: regSelectedExam, valores: regValues })
+                                setShowRegSuccess(true)
+                                setRegStep(1)
+                                setRegSelectedExam(null)
+                                setRegValues({})
+                              }}
+                            >
+                              Guardar registro
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Modal de confirmación de registro */}
+                  <Dialog open={showRegSuccess} onOpenChange={setShowRegSuccess}>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>¡Registro guardado!</DialogTitle>
+                        <DialogDescription>
+                          Se registró todo correctamente. Puedes comenzar un nuevo registro cuando quieras.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <DialogFooter>
+                        <Button className="bg-purple-600 hover:bg-purple-700 text-white" onClick={() => setShowRegSuccess(false)}>
+                          Listo
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </TabsContent>
+              </Tabs>
             </div>
           </main>
         </div>
@@ -282,7 +464,7 @@ function SidebarItem({ icon, label, active = false, onClick }: SidebarItemProps)
   )
 }
 
-function Stepper({ step }: { step: number }) {
+function Stepper({ step, labels }: { step: number; labels: [string, string, string] }) {
   const state1: StepState = step > 1 ? "done" : step === 1 ? "active" : "todo"
   const state2: StepState = step > 2 ? "done" : step === 2 ? "active" : "todo"
   const state3: StepState = step === 3 ? "active" : step > 3 ? "done" : "todo"
@@ -297,9 +479,9 @@ function Stepper({ step }: { step: number }) {
         <StepCircle index={3} state={state3} />
       </div>
       <div className="mt-2 grid grid-cols-3 gap-8 justify-items-center w-full">
-        <StepLabel text="Examen" state={state1} />
-        <StepLabel text="Archivo" state={state2} />
-        <StepLabel text="Resultados" state={state3} />
+        <StepLabel text={labels[0]} state={state1} />
+        <StepLabel text={labels[1]} state={state2} />
+        <StepLabel text={labels[2]} state={state3} />
       </div>
     </div>
   )
@@ -402,6 +584,52 @@ function mockConclusion(selected: string | null): string {
       return "PCR elevada sugiere proceso inflamatorio activo. Recomendada correlación con síntomas y otros marcadores."
     default:
       return "Resultados simulados a la espera de un examen seleccionado."
+  }
+}
+
+// Campos por defecto para el flujo de registro
+function formFieldsForExam(selected: string | null): { key: string; label: string; placeholder: string }[] {
+  switch (selected) {
+    case "hemograma":
+      return [
+        { key: "hemoglobina", label: "Hemoglobina (g/dL)", placeholder: "13.8" },
+        { key: "hematocrito", label: "Hematocrito (%)", placeholder: "41" },
+        { key: "leucocitos", label: "Leucocitos (x10^3/µL)", placeholder: "11.2" },
+        { key: "plaquetas", label: "Plaquetas (x10^3/µL)", placeholder: "150" },
+      ]
+    case "perfiles-bioquimicos":
+      return [
+        { key: "glucosa", label: "Glucosa (mg/dL)", placeholder: "112" },
+        { key: "creatinina", label: "Creatinina (mg/dL)", placeholder: "0.9" },
+        { key: "colesterol", label: "Colesterol total (mg/dL)", placeholder: "182" },
+        { key: "trigliceridos", label: "Triglicéridos (mg/dL)", placeholder: "170" },
+      ]
+    case "electrolitos":
+      return [
+        { key: "sodio", label: "Sodio (mmol/L)", placeholder: "138" },
+        { key: "potasio", label: "Potasio (mmol/L)", placeholder: "3.4" },
+        { key: "cloro", label: "Cloro (mmol/L)", placeholder: "104" },
+      ]
+    case "marcadores-tumorales":
+      return [
+        { key: "cea", label: "CEA (ng/mL)", placeholder: "3.1" },
+        { key: "ca125", label: "CA-125 (U/mL)", placeholder: "36" },
+      ]
+    case "coagulacion":
+      return [
+        { key: "inr", label: "TP (INR)", placeholder: "1.2" },
+        { key: "ttpa", label: "TTPa (s)", placeholder: "36" },
+      ]
+    case "inmunologia":
+      return [
+        { key: "pcr", label: "PCR (mg/L)", placeholder: "7" },
+        { key: "igg", label: "IgG (mg/dL)", placeholder: "980" },
+      ]
+    default:
+      return [
+        { key: "campo_a", label: "Campo A", placeholder: "—" },
+        { key: "campo_b", label: "Campo B", placeholder: "—" },
+      ]
   }
 }
 
