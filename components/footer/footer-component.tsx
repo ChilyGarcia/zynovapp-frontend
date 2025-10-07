@@ -33,7 +33,7 @@ export default function FooterComponent() {
           <div className="flex justify-center gap-4 mb-6">
             {/* Instagram */}
             <a
-              href="#"
+              href="https://www.instagram.com/zynovapp/"
               aria-label="Instagram"
               className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-tr from-pink-500 to-indigo-600"
               target="_blank"
