@@ -57,13 +57,11 @@ export function Dashboard() {
               <SidebarItem
                 icon={<Home className="w-5 h-5" />}
                 label="Inicio"
-                active={activeTab === "inicio"}
-                onClick={() => setActiveTab("inicio")}
+                onClick={() => (window.location.href = "/dashboard")}
               />
               <SidebarItem
                 icon={<MessageSquare className="w-5 h-5" />}
                 label="Consult"
-                active={window.location.pathname === "/consult"}
                 onClick={() => (window.location.href = "/consult")}
               />
               <SidebarItem
