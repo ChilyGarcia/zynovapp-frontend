@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -12,7 +12,12 @@ import {
   AlertTriangle,
   CreditCard,
   HelpCircle,
+  Bell,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import NavbarComponent from "./navbar/navbar-component";
 
 interface AppLayoutProps {
@@ -35,8 +40,8 @@ function SidebarItem({
       onClick={onClick}
       className={`flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
         active
-          ? "bg-purple-50 text-purple-700"
-          : "text-gray-700 hover:bg-gray-100"
+          ? "bg-purple-100 text-purple-700"
+          : "text-gray-600 hover:bg-gray-100"
       }`}
     >
       <span className="mr-3">{icon}</span>
@@ -48,9 +53,29 @@ function SidebarItem({
 export function AppLayout({ children }: AppLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState(
-    pathname.split("/").pop() || "inicio"
-  );
+  const [activeTab, setActiveTab] = useState("inicio");
+  const [pageTitle, setPageTitle] = useState("Inicio");
+
+  useEffect(() => {
+    const currentPath = pathname.split("/").pop() || "inicio";
+    setActiveTab(currentPath);
+
+    // Actualizar el título según la ruta
+    const titles: { [key: string]: string } = {
+      inicio: "Inicio",
+      consultar: "Consultar",
+      "mi-historia": "Mi Historia",
+      pacientes: "Pacientes",
+      chequeos: "Chequeos",
+      informes: "Informes",
+      alertas: "Alertas",
+      pagos: "Pagos y Créditos",
+      soporte: "Soporte",
+      aiviapp: "AIVIAPP",
+    };
+
+    setPageTitle(titles[currentPath] || "Inicio");
+  }, [pathname]);
 
   const handleNavigation = (path: string) => {
     setActiveTab(path);
@@ -58,9 +83,9 @@ export function AppLayout({ children }: AppLayoutProps) {
   };
 
   const menuItems = [
-    { id: "inicio", label: "Inicio", icon: <Home className="w-5 h-5" /> },
+    { id: "dashboard", label: "Inicio", icon: <Home className="w-5 h-5" /> },
     {
-      id: "consultar",
+      id: "consult",
       label: "Consultar",
       icon: <MessageSquare className="w-5 h-5" />,
     },
@@ -129,7 +154,10 @@ export function AppLayout({ children }: AppLayoutProps) {
 
           {/* AIVIAPP Button */}
           <div className="p-4">
-            <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg">
+            <Button
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg"
+              onClick={() => handleNavigation("aiviapp")}
+            >
               AIVIAPP
             </Button>
           </div>
@@ -139,7 +167,12 @@ export function AppLayout({ children }: AppLayoutProps) {
         <div className="flex-1 flex flex-col overflow-hidden">
           <NavbarComponent />
           <main className="flex-1 overflow-y-auto p-6">
-            <div className="max-w-7xl mx-auto">{children}</div>
+            <div className="max-w-7xl mx-auto">
+              <h1 className="text-2xl font-bold text-gray-900 mb-6">
+                {pageTitle}
+              </h1>
+              {children}
+            </div>
           </main>
         </div>
       </div>
