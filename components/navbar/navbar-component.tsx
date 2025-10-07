@@ -1,7 +1,8 @@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bell, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
+import NotificationsDropdown from "@/components/notifications-dropdown";
 
 export default function NavbarComponent() {
   return (
@@ -55,12 +56,8 @@ export default function NavbarComponent() {
               </span>
             </Button>
 
-            {/* Notification Bell */}
-            <button className="p-2 text-gray-500 hover:text-gray-700 relative">
-              <span className="absolute -inset-1 bg-gradient-to-tr from-purple-500 to-indigo-500 opacity-20 rounded-full" />
-              <Bell className="w-5 h-5 relative" />
-              <div className="absolute top-0 right-0 w-2 h-2 bg-purple-500 rounded-full ring-2 ring-white"></div>
-            </button>
+            {/* Notification Dropdown */}
+            <NotificationsDropdown />
 
             {/* User Profile */}
             <div className="flex items-center gap-2 cursor-pointer">
