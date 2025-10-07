@@ -48,23 +48,53 @@ function SidebarItem({
 export function AppLayout({ children }: AppLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState(pathname.split('/').pop() || 'inicio');
+  const [activeTab, setActiveTab] = useState(
+    pathname.split("/").pop() || "inicio"
+  );
 
   const handleNavigation = (path: string) => {
     setActiveTab(path);
-    router.push(`/dashboard/${path}`);
+    router.push(`/${path}`);
   };
 
   const menuItems = [
-    { id: 'inicio', label: 'Inicio', icon: <Home className="w-5 h-5" /> },
-    { id: 'consultar', label: 'Consultar', icon: <MessageSquare className="w-5 h-5" /> },
-    { id: 'mi-historia', label: 'Mi Historia', icon: <FileText className="w-5 h-5" /> },
-    { id: 'pacientes', label: 'Pacientes', icon: <Users className="w-5 h-5" /> },
-    { id: 'chequeos', label: 'Chequeos', icon: <Users className="w-5 h-5" /> },
-    { id: 'informes', label: 'Informes', icon: <BarChart3 className="w-5 h-5" /> },
-    { id: 'alertas', label: 'Alertas', icon: <AlertTriangle className="w-5 h-5" /> },
-    { id: 'pagos', label: 'Pagos y Créditos', icon: <CreditCard className="w-5 h-5" /> },
-    { id: 'soporte', label: 'Soporte', icon: <HelpCircle className="w-5 h-5" /> },
+    { id: "inicio", label: "Inicio", icon: <Home className="w-5 h-5" /> },
+    {
+      id: "consultar",
+      label: "Consultar",
+      icon: <MessageSquare className="w-5 h-5" />,
+    },
+    {
+      id: "mi-historia",
+      label: "Mi Historia",
+      icon: <FileText className="w-5 h-5" />,
+    },
+    {
+      id: "pacientes",
+      label: "Pacientes",
+      icon: <Users className="w-5 h-5" />,
+    },
+    { id: "chequeos", label: "Chequeos", icon: <Users className="w-5 h-5" /> },
+    {
+      id: "informes",
+      label: "Informes",
+      icon: <BarChart3 className="w-5 h-5" />,
+    },
+    {
+      id: "alertas",
+      label: "Alertas",
+      icon: <AlertTriangle className="w-5 h-5" />,
+    },
+    {
+      id: "pagos",
+      label: "Pagos y Créditos",
+      icon: <CreditCard className="w-5 h-5" />,
+    },
+    {
+      id: "soporte",
+      label: "Soporte",
+      icon: <HelpCircle className="w-5 h-5" />,
+    },
   ];
 
   return (
@@ -109,9 +139,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         <div className="flex-1 flex flex-col overflow-hidden">
           <NavbarComponent />
           <main className="flex-1 overflow-y-auto p-6">
-            <div className="max-w-7xl mx-auto">
-              {children}
-            </div>
+            <div className="max-w-7xl mx-auto">{children}</div>
           </main>
         </div>
       </div>
