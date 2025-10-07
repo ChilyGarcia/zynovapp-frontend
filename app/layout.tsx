@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   title: 'Zynovapp',
   description: 'Zynovapp',
   icons: {
-    icon: '/icons/zynovapp.svg',
+    icon: '/icons/zinovapp-windows.png',
   },
 }
 
