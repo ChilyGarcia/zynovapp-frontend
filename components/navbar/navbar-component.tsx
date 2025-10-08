@@ -1,16 +1,32 @@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Menu } from "lucide-react";
 import CreditsDropdown from "./credits-dropdown";
 import NotificationsDropdown from "@/components/notifications-dropdown";
 import UserDropdown from "./user-dropdown";
 
-export default function NavbarComponent() {
+interface NavbarComponentProps {
+  onMenuClick?: () => void;
+}
+
+export default function NavbarComponent({ onMenuClick }: NavbarComponentProps) {
   return (
     <>
-      <header className="bg-white/90 backdrop-blur-sm shadow-sm border-b border-gray-200 px-6 py-3">
+      <header className="bg-white/90 backdrop-blur-sm shadow-sm border-b border-gray-200 px-4 py-3">
         <div className="flex items-center justify-between">
+          {/* Mobile Menu Button */}
+          <div className="md:hidden">
+            <button
+              onClick={onMenuClick}
+              className="p-2 rounded-md text-gray-700 hover:bg-gray-100"
+              aria-label="Abrir menú"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+          </div>
+          
           {/* Search Bar */}
-          <div className="flex-1 max-w-lg mx-8">
+          <div className="flex-1 max-w-lg mx-2 md:mx-4 lg:mx-8">
             <div className="relative">
               <Input
                 placeholder="Buscador"
