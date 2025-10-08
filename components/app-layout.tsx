@@ -13,42 +13,12 @@ import {
   AlertTriangle,
   CreditCard,
   HelpCircle,
-  Bell,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import NavbarComponent from "./navbar/navbar-component";
+import Sidebar from "./sidebar/sidebar";
 
 interface AppLayoutProps {
   children: React.ReactNode;
-}
-
-function SidebarItem({
-  icon,
-  label,
-  active = false,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  active?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
-        active
-          ? "bg-purple-100 text-purple-700"
-          : "text-gray-600 hover:bg-gray-100"
-      }`}
-    >
-      <span className="mr-3">{icon}</span>
-      {label}
-    </button>
-  );
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
@@ -122,64 +92,27 @@ export function AppLayout({ children }: AppLayoutProps) {
       id: "soporte",
       label: "Soporte",
       icon: <HelpCircle className="w-5 h-5" />,
-    },
+    }
   ];
 
   return (
     <div className="min-h-screen bg-[#F5F3FF] flex flex-col">
       <div className="flex flex-1">
         {/* Sidebar */}
-        <div className="w-64 bg-white/90 backdrop-blur-sm shadow-sm border-r border-gray-200 flex flex-col">
-          <div className="py-6 border-b border-gray-100 flex justify-center">
-            <div className="w-full px-8">
-              <img
-                src="/icons/zynovapp-icon.png"
-                alt="Zynovapp"
-                className="h-8 w-auto mx-auto object-contain"
-              />
-            </div>
-          </div>
-
-          {/* Sidebar Navigation */}
-          <div className="flex-1 py-4 overflow-y-auto">
-            <nav className="space-y-1 px-3">
-              {menuItems.map((item) => (
-                <SidebarItem
-                  key={item.id}
-                  icon={item.icon}
-                  label={item.label}
-                  active={activeTab === item.id}
-                  onClick={() => handleNavigation(item.id)}
-                />
-              ))}
-            </nav>
-          </div>
-
-          {/* AIVIAPP Button */}
-          <div className="p-4">
-            <Button
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg"
-              onClick={() => handleNavigation("aiviapp")}
-            >
-              AIVIAPP
-            </Button>
-          </div>
-
-          {/* AIVIAPP Modal */}
-          <AIVIAPPModal
-            isOpen={isAIVIAPPModalOpen}
-            onClose={() => setIsAIVIAPPModalOpen(false)}
-          />
-        </div>
+        <Sidebar
+          menuItems={menuItems}
+          activeTab={activeTab}
+          onNavigation={handleNavigation}
+        />
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <NavbarComponent />
           <main className="flex-1 overflow-y-auto p-6">
-            <div className="max-w-7xl mx-auto">
-              <h1 className="text-2xl font-bold text-gray-900 mb-6"></h1>
-              {children}
-            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-6">
+              {menuItems.find(item => item.id === activeTab)?.label || 'Dashboard'}
+            </h1>
+            {children}
           </main>
         </div>
       </div>
