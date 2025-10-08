@@ -55,7 +55,6 @@ export function AppLayout({ children }: AppLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("inicio");
-  const [pageTitle, setPageTitle] = useState("Inicio");
   const [isAIVIAPPModalOpen, setIsAIVIAPPModalOpen] = useState(false);
 
   useEffect(() => {
@@ -75,8 +74,6 @@ export function AppLayout({ children }: AppLayoutProps) {
       soporte: "Soporte",
       aiviapp: "AIVIAPP",
     };
-
-    setPageTitle(titles[currentPath] || "Inicio");
   }, [pathname]);
 
   const handleNavigation = (path: string) => {
@@ -180,9 +177,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           <NavbarComponent />
           <main className="flex-1 overflow-y-auto p-6">
             <div className="max-w-7xl mx-auto">
-              <h1 className="text-2xl font-bold text-gray-900 mb-6">
-                {pageTitle}
-              </h1>
+              <h1 className="text-2xl font-bold text-gray-900 mb-6"></h1>
               {children}
             </div>
           </main>
