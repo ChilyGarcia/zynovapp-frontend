@@ -26,17 +26,8 @@ export default function NavbarComponent({ onMenuClick }: NavbarComponentProps) {
                 <Menu className="w-5 h-5" />
               </button>
             </div>
-            
-            {/* Logo - Hidden on mobile */}
-            <div className="hidden md:block">
-              <img
-                src="/icons/zynovapp-icon.png"
-                alt="Zynovapp"
-                className="h-8 w-auto"
-              />
-            </div>
           </div>
-          
+
           {/* Center Section - Search Bar */}
           <div className="flex-1 max-w-2xl mx-1 sm:mx-2 md:mx-4 lg:mx-6">
             <div className="relative w-full">
@@ -70,7 +61,7 @@ export default function NavbarComponent({ onMenuClick }: NavbarComponentProps) {
                 Filtro
               </Button>
             </div>
-            
+
             {/* Credits Dropdown - Hidden on mobile */}
             <div className="hidden sm:block">
               <CreditsDropdown credits={330} status="Activos" />
