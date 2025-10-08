@@ -1,12 +1,12 @@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import CreditsDropdown from "./credits-dropdown";
 import NotificationsDropdown from "@/components/notifications-dropdown";
 import UserDropdown from "./user-dropdown";
 
 export default function NavbarComponent() {
   return (
     <>
-      {" "}
       <header className="bg-white/90 backdrop-blur-sm shadow-sm border-b border-gray-200 px-6 py-3">
         <div className="flex items-center justify-between">
           {/* Search Bar */}
@@ -40,26 +40,13 @@ export default function NavbarComponent() {
               Filtro
             </Button>
             {/* Credits Button */}
-            <Button className="bg-gradient-to-r from-[#6A00F4] via-[#9B5DE5] to-[#F15BB5] hover:opacity-90 text-white rounded-full h-10 px-4 flex items-center gap-2 shadow-sm">
-              <svg
-                className="w-4 h-4"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                aria-hidden="true"
-              >
-                <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z" />
-              </svg>
-              <span className="text-sm font-medium">330 Créditos</span>
-              <span className="text-[10px] uppercase bg-white/20 px-2 py-0.5 rounded-full">
-                Activos
-              </span>
-            </Button>
+            <CreditsDropdown credits={330} status="Activos" />
 
             {/* Notification Dropdown */}
             <NotificationsDropdown />
 
             {/* User Profile Dropdown */}
-            <UserDropdown 
+            <UserDropdown
               userName="María López"
               userRole="User"
               userImage="/professional-woman-doctor.png"
