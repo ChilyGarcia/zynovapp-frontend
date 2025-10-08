@@ -80,7 +80,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   }, [pathname]);
 
   const handleNavigation = (path: string) => {
-    if (path === 'aiviapp') {
+    if (path === "aiviapp") {
       setIsAIVIAPPModalOpen(true);
     } else {
       setActiveTab(path);
@@ -133,12 +133,12 @@ export function AppLayout({ children }: AppLayoutProps) {
       <div className="flex flex-1">
         {/* Sidebar */}
         <div className="w-64 bg-white/90 backdrop-blur-sm shadow-sm border-r border-gray-200 flex flex-col">
-          <div className="p-6 border-b border-gray-100">
-            <div className="flex items-center gap-2">
+          <div className="py-6 border-b border-gray-100 flex justify-center">
+            <div className="w-full px-8">
               <img
                 src="/icons/zynovapp-icon.png"
                 alt="Zynovapp"
-                className="h-5 w-auto"
+                className="h-8 w-auto mx-auto object-contain"
               />
             </div>
           </div>
@@ -167,11 +167,11 @@ export function AppLayout({ children }: AppLayoutProps) {
               AIVIAPP
             </Button>
           </div>
-          
+
           {/* AIVIAPP Modal */}
-          <AIVIAPPModal 
-            isOpen={isAIVIAPPModalOpen} 
-            onClose={() => setIsAIVIAPPModalOpen(false)} 
+          <AIVIAPPModal
+            isOpen={isAIVIAPPModalOpen}
+            onClose={() => setIsAIVIAPPModalOpen(false)}
           />
         </div>
 
