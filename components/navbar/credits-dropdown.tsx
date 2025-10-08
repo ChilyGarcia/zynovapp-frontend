@@ -5,12 +5,12 @@ import { RefreshCw, Clock, Zap } from 'lucide-react';
 
 interface CreditsDropdownProps {
   credits: number;
-  status?: string;
+  status: string;
 }
 
 export default function CreditsDropdown({ 
-  credits = 330, 
-  status = 'Activos' 
+  credits, 
+  status 
 }: CreditsDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);

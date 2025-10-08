@@ -12,9 +12,9 @@ interface UserDropdownProps {
 }
 
 export default function UserDropdown({ 
-  userName = 'María López', 
-  userRole = 'User',
-  userImage = '/professional-woman-doctor.png' 
+  userName, 
+  userRole,
+  userImage 
 }: UserDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
