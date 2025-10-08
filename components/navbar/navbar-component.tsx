@@ -1,8 +1,7 @@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ChevronDown } from "lucide-react";
 import NotificationsDropdown from "@/components/notifications-dropdown";
+import UserDropdown from "./user-dropdown";
 
 export default function NavbarComponent() {
   return (
@@ -59,20 +58,12 @@ export default function NavbarComponent() {
             {/* Notification Dropdown */}
             <NotificationsDropdown />
 
-            {/* User Profile */}
-            <div className="flex items-center gap-2 cursor-pointer">
-              <Avatar className="w-8 h-8">
-                <AvatarImage src="/professional-woman-doctor.png" />
-                <AvatarFallback>ML</AvatarFallback>
-              </Avatar>
-              <div className="flex flex-col">
-                <span className="text-sm font-medium text-gray-700">
-                  María López
-                </span>
-                <span className="text-xs text-gray-500">User</span>
-              </div>
-              <ChevronDown className="w-4 h-4 text-gray-400" />
-            </div>
+            {/* User Profile Dropdown */}
+            <UserDropdown 
+              userName="María López"
+              userRole="User"
+              userImage="/professional-woman-doctor.png"
+            />
           </div>
         </div>
       </header>
