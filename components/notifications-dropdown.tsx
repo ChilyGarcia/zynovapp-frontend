@@ -64,17 +64,24 @@ const NotificationsDropdown = () => {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
-          <div className="p-4 border-b border-gray-200">
-            <div className="flex justify-between items-center">
+        <div className="fixed inset-0 flex items-start justify-center p-4 md:absolute md:right-0 md:top-full md:mt-2 md:w-80 md:inset-auto md:p-0 bg-white md:bg-transparent md:rounded-lg shadow-lg border border-gray-200 z-50">
+          <div className="w-full max-w-md bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden md:max-w-none">
+            <div className="p-4 border-b border-gray-200 flex justify-between items-center">
               <h3 className="font-medium text-gray-900">Notificaciones</h3>
-              <button className="text-sm text-purple-600 hover:text-purple-700">
-                Marcar todo como leído
-              </button>
+              <div className="flex items-center gap-2">
+                <button className="text-sm text-purple-600 hover:text-purple-700">
+                  Marcar todo como leído
+                </button>
+                <button 
+                  className="md:hidden text-gray-500 hover:text-gray-700"
+                  onClick={() => setIsOpen(false)}
+                >
+                  ✕
+                </button>
+              </div>
             </div>
-          </div>
           
-          <div className="max-h-96 overflow-y-auto">
+          <div className="max-h-[calc(100vh-120px)] md:max-h-96 overflow-y-auto">
             {notifications.length > 0 ? (
               notifications.map((notification) => (
                 <div 
@@ -128,6 +135,7 @@ const NotificationsDropdown = () => {
             </a>
           </div>
         </div>
+      </div>
       )}
     </div>
   );
