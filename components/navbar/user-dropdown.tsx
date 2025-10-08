@@ -9,14 +9,12 @@ interface UserDropdownProps {
   userName: string;
   userRole: string;
   userImage?: string;
-  compact?: boolean;
 }
 
 export default function UserDropdown({ 
   userName, 
   userRole,
-  userImage,
-  compact = false 
+  userImage 
 }: UserDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -48,31 +46,27 @@ export default function UserDropdown({
   return (
     <div className="relative" ref={dropdownRef}>
       <div 
-        className={`flex items-center gap-2 cursor-pointer ${compact ? 'p-1' : ''}`}
+        className="flex items-center gap-2 cursor-pointer"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <Avatar className={`${compact ? 'w-7 h-7' : 'w-8 h-8'}`}>
+        <Avatar className="w-8 h-8">
           <AvatarImage src={userImage} alt={userName} />
-          <AvatarFallback className="text-xs">
-            {userName.split(' ').map(n => n[0]).join('').toUpperCase()}
-          </AvatarFallback>
+          <AvatarFallback>{userName.split(' ').map(n => n[0]).join('')}</AvatarFallback>
         </Avatar>
-        {!compact && (
-          <div className="flex flex-col">
-            <span className="text-sm font-medium text-gray-700 line-clamp-1">
-              {userName}
-            </span>
-            <span className="text-xs text-gray-500">{userRole}</span>
-          </div>
-        )}
+        <div className="flex flex-col">
+          <span className="text-sm font-medium text-gray-700">
+            {userName}
+          </span>
+          <span className="text-xs text-gray-500">{userRole}</span>
+        </div>
         <ChevronDown 
-          className={`${compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} text-gray-400 transition-transform ${isOpen ? 'transform rotate-180' : ''}`} 
+          className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'transform rotate-180' : ''}`} 
         />
       </div>
       
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className={`absolute ${compact ? 'right-0' : 'right-0'} mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-100`}>
+        <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-100">
           <button
             onClick={handleConfiguracion}
             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
