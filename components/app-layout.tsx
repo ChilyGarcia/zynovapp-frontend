@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { usePathname, useRouter } from "next/navigation";
+import { AIVIAPPModal } from "@/components/aiviapp-modal";
 import {
   Home,
   FileText,
@@ -55,6 +56,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("inicio");
   const [pageTitle, setPageTitle] = useState("Inicio");
+  const [isAIVIAPPModalOpen, setIsAIVIAPPModalOpen] = useState(false);
 
   useEffect(() => {
     const currentPath = pathname.split("/").pop() || "inicio";
@@ -78,8 +80,12 @@ export function AppLayout({ children }: AppLayoutProps) {
   }, [pathname]);
 
   const handleNavigation = (path: string) => {
-    setActiveTab(path);
-    router.push(`/${path}`);
+    if (path === 'aiviapp') {
+      setIsAIVIAPPModalOpen(true);
+    } else {
+      setActiveTab(path);
+      router.push(`/${path}`);
+    }
   };
 
   const menuItems = [
@@ -161,6 +167,12 @@ export function AppLayout({ children }: AppLayoutProps) {
               AIVIAPP
             </Button>
           </div>
+          
+          {/* AIVIAPP Modal */}
+          <AIVIAPPModal 
+            isOpen={isAIVIAPPModalOpen} 
+            onClose={() => setIsAIVIAPPModalOpen(false)} 
+          />
         </div>
 
         {/* Main Content */}
