@@ -149,7 +149,7 @@ export default function HistoryPage() {
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-              <div className="relative w-full">
+              <div className=" w-full">
                 <input
                   type="text"
                   placeholder="Buscar exámenes..."
@@ -161,7 +161,7 @@ export default function HistoryPage() {
                   <Search className="w-4 h-4 text-gray-400" />
                 </div>
               </div>
-              <div className="relative w-full">
+              <div className=" w-full">
                 <select
                   className="w-full pr-10 pl-4 bg-white border border-gray-200 rounded-full h-9 sm:h-10 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none shadow-sm"
                   value={selectedSpecialty}
