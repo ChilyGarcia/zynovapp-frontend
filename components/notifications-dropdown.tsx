@@ -55,9 +55,10 @@ const NotificationsDropdown = () => {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="p-2 rounded-full hover:bg-gray-100 relative"
+        className="p-2 rounded-full hover:bg-gray-100 relative group"
       >
-        <Bell className="h-5 w-5 text-gray-500" />
+        <div className="absolute -inset-1 bg-gradient-to-tr from-purple-500 to-indigo-500 opacity-20 rounded-full group-hover:opacity-30 transition-opacity"></div>
+        <Bell className="h-5 w-5 text-gray-500 relative z-10" />
         {unreadCount > 0 && (
           <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500"></span>
         )}
