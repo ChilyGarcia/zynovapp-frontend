@@ -64,7 +64,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       icon: <MessageSquare className="w-5 h-5" />,
     },
     {
-      id: "mi-historia",
+      id: "history",
       label: "Mi Historia",
       icon: <FileText className="w-5 h-5" />,
     },
@@ -93,7 +93,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       id: "soporte",
       label: "Soporte",
       icon: <HelpCircle className="w-5 h-5" />,
-    }
+    },
   ];
 
   // Función para alternar el sidebar
@@ -108,15 +108,15 @@ export function AppLayout({ children }: AppLayoutProps) {
         setIsSidebarOpen(false);
       }
     };
-    
-    window.addEventListener('resize', () => {
+
+    window.addEventListener("resize", () => {
       if (window.innerWidth >= 768) {
         setIsSidebarOpen(false);
       }
     });
 
     return () => {
-      window.removeEventListener('resize', () => {});
+      window.removeEventListener("resize", () => {});
     };
   }, []);
 
@@ -125,16 +125,20 @@ export function AppLayout({ children }: AppLayoutProps) {
       <div className="flex flex-1 relative">
         {/* Overlay para móvil */}
         {isSidebarOpen && (
-          <div 
+          <div
             className="fixed inset-0 bg-black/50 z-20 md:hidden"
             onClick={() => setIsSidebarOpen(false)}
           />
         )}
-        
+
         {/* Sidebar */}
-        <div className={`fixed md:static z-30 h-full transition-transform duration-300 ease-in-out ${
-          isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-        }`}>
+        <div
+          className={`fixed md:static z-30 h-full transition-transform duration-300 ease-in-out ${
+            isSidebarOpen
+              ? "translate-x-0"
+              : "-translate-x-full md:translate-x-0"
+          }`}
+        >
           <Sidebar
             menuItems={menuItems}
             activeTab={activeTab}
@@ -152,7 +156,8 @@ export function AppLayout({ children }: AppLayoutProps) {
           <NavbarComponent onMenuClick={toggleSidebar} />
           <main className="flex-1 overflow-y-auto p-4 md:p-6">
             <h1 className="text-2xl font-bold text-gray-900 mb-6">
-              {menuItems.find(item => item.id === activeTab)?.label || 'Dashboard'}
+              {menuItems.find((item) => item.id === activeTab)?.label ||
+                "Dashboard"}
             </h1>
             {children}
           </main>
