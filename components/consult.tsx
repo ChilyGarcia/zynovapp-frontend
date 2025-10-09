@@ -21,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import FooterComponent from "./footer/footer-component";
 
 const mockExams = [
   {
@@ -177,6 +178,7 @@ export function Consult() {
           </CardFooter>
         </Card>
       )}
+      <FooterComponent />
     </div>
   );
 }
