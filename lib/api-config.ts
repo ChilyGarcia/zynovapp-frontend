@@ -1,6 +1,6 @@
 // Configuración del API
 // Puedes cambiar esta URL según tu entorno
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://apizynovapp.zynovapp.com"
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://apizynovapp.zynovapp.com"
 
 export const API_ENDPOINTS = {
   login: `${API_URL}/api/auth/login`,
