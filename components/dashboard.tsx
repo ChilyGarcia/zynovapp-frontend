@@ -24,9 +24,9 @@ import {
 import { CategoriesGrid } from "@/components/categories/categories-grid";
 import FooterComponent from "./footer/footer-component";
 import NavbarComponent from "./navbar/navbar-component";
+import SidebarComponent from "./sidebar/sidebar-component";
 
 export function Dashboard() {
-  const [activeTab, setActiveTab] = useState("inicio");
   const [chatMessage, setChatMessage] = useState("");
 
   const handleSendMessage = () => {
@@ -40,84 +40,7 @@ export function Dashboard() {
     <div className="min-h-screen bg-[#F5F3FF] flex flex-col">
       <div className="flex flex-1">
         {/* Sidebar */}
-        <div className="w-64 bg-white/90 backdrop-blur-sm shadow-sm border-r border-gray-200 flex flex-col">
-          <div className="p-6 border-b border-gray-100">
-            <div className="flex items-center gap-2">
-              <img
-                src="/icons/zynovapp-icon.png"
-                alt="Zynovapp"
-                className="h-5 w-auto"
-              />
-            </div>
-          </div>
-
-          {/* Sidebar Navigation */}
-          <div className="flex-1 py-4">
-            <nav className="space-y-1 px-3">
-              <SidebarItem
-                icon={<Home className="w-5 h-5" />}
-                label="Inicio"
-                active={activeTab === "inicio"}
-                onClick={() => setActiveTab("inicio")}
-              />
-              <SidebarItem
-                icon={<MessageSquare className="w-5 h-5" />}
-                label="Consultar"
-                active={activeTab === "consultar"}
-                onClick={() => setActiveTab("consultar")}
-              />
-              <SidebarItem
-                icon={<FileText className="w-5 h-5" />}
-                label="Mi Historia"
-                active={activeTab === "mi-historia"}
-                onClick={() => setActiveTab("mi-historia")}
-              />
-              <SidebarItem
-                icon={<Users className="w-5 h-5" />}
-                label="Pacientes"
-                active={activeTab === "pacientes"}
-                onClick={() => setActiveTab("pacientes")}
-              />
-              <SidebarItem
-                icon={<Users className="w-5 h-5" />}
-                label="Chequeos"
-                active={activeTab === "chequeos"}
-                onClick={() => setActiveTab("chequeos")}
-              />
-              <SidebarItem
-                icon={<BarChart3 className="w-5 h-5" />}
-                label="Informes"
-                active={activeTab === "informes"}
-                onClick={() => setActiveTab("informes")}
-              />
-              <SidebarItem
-                icon={<AlertTriangle className="w-5 h-5" />}
-                label="Alertas"
-                active={activeTab === "alertas"}
-                onClick={() => setActiveTab("alertas")}
-              />
-              <SidebarItem
-                icon={<CreditCard className="w-5 h-5" />}
-                label="Pagos y Créditos"
-                active={activeTab === "pagos"}
-                onClick={() => setActiveTab("pagos")}
-              />
-              <SidebarItem
-                icon={<HelpCircle className="w-5 h-5" />}
-                label="Soporte"
-                active={activeTab === "soporte"}
-                onClick={() => setActiveTab("soporte")}
-              />
-            </nav>
-          </div>
-
-          {/* AIVIAPP Button */}
-          <div className="p-4">
-            <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg">
-              AIVIAPP
-            </Button>
-          </div>
-        </div>
+        <SidebarComponent />
 
         <div className="flex-1 flex flex-col">
           <NavbarComponent />
@@ -694,33 +617,5 @@ export function Dashboard() {
 
       <FooterComponent />
     </div>
-  );
-}
-
-interface SidebarItemProps {
-  icon: React.ReactNode;
-  label: string;
-  active?: boolean;
-  onClick?: () => void;
-}
-
-function SidebarItem({
-  icon,
-  label,
-  active = false,
-  onClick,
-}: SidebarItemProps) {
-  return (
-    <button
-      onClick={onClick}
-      className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
-        active
-          ? "bg-purple-100 text-purple-700 font-medium"
-          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-      }`}
-    >
-      {icon}
-      <span className="text-sm">{label}</span>
-    </button>
   );
 }

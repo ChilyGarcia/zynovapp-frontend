@@ -1,9 +1,54 @@
+"use client"
+
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bell, ChevronDown } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Bell, ChevronDown, Settings, LogOut } from "lucide-react";
+import { useAuth } from "@/contexts/auth-context";
+import { useRouter } from "next/navigation";
 
 export default function NavbarComponent() {
+  const { user, logout } = useAuth()
+  const router = useRouter()
+
+  // Función para obtener las iniciales del nombre
+  const getInitials = (name: string) => {
+    const names = name.split(" ")
+    if (names.length >= 2) {
+      return `${names[0][0]}${names[1][0]}`.toUpperCase()
+    }
+    return name.slice(0, 2).toUpperCase()
+  }
+
+  // Función para obtener el rol en español
+  const getRoleLabel = (role: string) => {
+    const roles: Record<string, string> = {
+      patient: "Paciente",
+      laboratory: "Laboratorio"
+    }
+    return roles[role] || role
+  }
+
+  // Función para cerrar sesión
+  const handleLogout = async () => {
+    await logout()
+    router.push("/")
+  }
+
+  // Función para ir a configuración (placeholder por ahora)
+  const handleSettings = () => {
+    // TODO: Implementar página de configuración
+    console.log("Ir a configuración")
+  }
+
   return (
     <>
       {" "}
@@ -63,19 +108,36 @@ export default function NavbarComponent() {
             </button>
 
             {/* User Profile */}
-            <div className="flex items-center gap-2 cursor-pointer">
-              <Avatar className="w-8 h-8">
-                <AvatarImage src="/professional-woman-doctor.png" />
-                <AvatarFallback>ML</AvatarFallback>
-              </Avatar>
-              <div className="flex flex-col">
-                <span className="text-sm font-medium text-gray-700">
-                  María López
-                </span>
-                <span className="text-xs text-gray-500">User</span>
-              </div>
-              <ChevronDown className="w-4 h-4 text-gray-400" />
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <div className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 rounded-lg px-2 py-1 transition-colors">
+                  <Avatar className="w-8 h-8">
+                    <AvatarImage src="/professional-woman-doctor.png" />
+                    <AvatarFallback>{user ? getInitials(user.name) : "U"}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-gray-700">
+                      {user?.name || "Usuario"}
+                    </span>
+                    <span className="text-xs text-gray-500">{user ? getRoleLabel(user.role) : "User"}</span>
+                  </div>
+                  <ChevronDown className="w-4 h-4 text-gray-400" />
+                </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>Mi Cuenta</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSettings} className="cursor-pointer">
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Configuración</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600 focus:text-red-600">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Cerrar sesión</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>
