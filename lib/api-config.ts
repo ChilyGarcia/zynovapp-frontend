@@ -31,6 +31,7 @@ export const API_ENDPOINTS = {
   laboratoryExam: (id: number) => `${API_URL}/api/laboratory/exams/${id}`,
   laboratoryExamQuestions: (examId: number) => `${API_URL}/api/laboratory/exams/${examId}/questions`,
   laboratoryExamResults: (examId: number) => `${API_URL}/api/laboratory/exams/${examId}/results`,
+  laboratoryExamExportPDF: (id: number) => `${API_URL}/api/laboratory/exams/${id}/export-pdf`,
   laboratoryExamsSearch: (documentNumber: string, status?: string) => {
     const params = new URLSearchParams({ document_number: documentNumber })
     if (status) params.append('status', status)

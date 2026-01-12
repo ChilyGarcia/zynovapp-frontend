@@ -28,6 +28,7 @@ import {
   Calendar,
   Building2,
   X,
+  Download,
 } from "lucide-react"
 
 export default function ConsultarPage() {
@@ -42,6 +43,7 @@ export default function ConsultarPage() {
   const [selectedExam, setSelectedExam] = useState<ExamDetail | null>(null)
   const [isLoadingDetail, setIsLoadingDetail] = useState(false)
   const [showDetailModal, setShowDetailModal] = useState(false)
+  const [downloadingPDF, setDownloadingPDF] = useState<number | null>(null)
   
   // Estados para búsqueda (rol laboratory)
   const [searchDocument, setSearchDocument] = useState("")
@@ -143,6 +145,60 @@ export default function ConsultarPage() {
       setIsSearching(false)
     }
   }, [searchDocument])
+
+  // Descargar PDF del examen
+  const downloadExamPDF = useCallback(async (examId: number) => {
+    try {
+      setDownloadingPDF(examId)
+      
+      const token = getAuthToken()
+      if (!token) {
+        throw new Error("No hay token de autenticación")
+      }
+      
+      const response = await fetchWithAuth(API_ENDPOINTS.laboratoryExamExportPDF(examId), {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || "Error al descargar el PDF")
+      }
+      
+      // Obtener el blob del PDF
+      const blob = await response.blob()
+      
+      // Crear un enlace temporal para descargar
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      
+      // Obtener el nombre del archivo del header Content-Disposition o usar uno por defecto
+      const contentDisposition = response.headers.get('Content-Disposition')
+      let filename = `examen-${examId}.pdf`
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?(.+)"?/i)
+        if (filenameMatch) {
+          filename = filenameMatch[1]
+        }
+      }
+      
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      
+      // Limpiar
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error("Error al descargar PDF:", err)
+      alert(err instanceof Error ? err.message : "Error al descargar el PDF")
+    } finally {
+      setDownloadingPDF(null)
+    }
+  }, [])
 
   // Cargar detalle del examen
   const loadExamDetail = useCallback(async (examId: number) => {
@@ -453,17 +509,35 @@ export default function ConsultarPage() {
                                 <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(exam.status)}`}>
                                   {getStatusLabel(exam.status)}
                                 </span>
-                                <Button
-                                  onClick={() => loadExamDetail(exam.id)}
-                                  disabled={isLoadingDetail}
-                                  className="bg-purple-600 hover:bg-purple-700 text-white"
-                                >
-                                  {isLoadingDetail ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                  ) : (
-                                    "Ver Detalle"
+                                <div className="flex gap-2">
+                                  {user?.role === "laboratory" && (
+                                    <Button
+                                      onClick={() => downloadExamPDF(exam.id)}
+                                      disabled={downloadingPDF === exam.id}
+                                      variant="outline"
+                                      size="sm"
+                                      className="border-purple-200 text-purple-700 hover:bg-purple-50"
+                                    >
+                                      {downloadingPDF === exam.id ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                      ) : (
+                                        <Download className="w-4 h-4" />
+                                      )}
+                                    </Button>
                                   )}
-                                </Button>
+                                  <Button
+                                    onClick={() => loadExamDetail(exam.id)}
+                                    disabled={isLoadingDetail}
+                                    className="bg-purple-600 hover:bg-purple-700 text-white"
+                                    size="sm"
+                                  >
+                                    {isLoadingDetail ? (
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                      "Ver Detalle"
+                                    )}
+                                  </Button>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -564,6 +638,26 @@ export default function ConsultarPage() {
               </div>
 
               <div className="mt-6 flex justify-end gap-3">
+                {user?.role === "laboratory" && selectedExam && (
+                  <Button
+                    onClick={() => downloadExamPDF(selectedExam.id)}
+                    disabled={downloadingPDF === selectedExam.id}
+                    variant="outline"
+                    className="border-purple-200 text-purple-700 hover:bg-purple-50"
+                  >
+                    {downloadingPDF === selectedExam.id ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Descargando...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4 mr-2" />
+                        Descargar PDF
+                      </>
+                    )}
+                  </Button>
+                )}
                 <Button variant="outline" onClick={() => setShowDetailModal(false)}>
                   Cerrar
                 </Button>
