@@ -126,3 +126,18 @@ export interface ExamDetailResponse {
   data: ExamDetail
 }
 
+export interface PatientSearchInfo {
+  id: number
+  first_name: string
+  last_name: string
+  document_number: string
+  document_type: string
+  blood_type: string | null
+}
+
+export interface LaboratoryExamsSearchResponse {
+  success: boolean
+  patient: PatientSearchInfo
+  exams_count: number
+  data: Exam[]
+}

@@ -15,6 +15,52 @@ import { API_ENDPOINTS } from "@/lib/api-config"
 import { fetchWithAuth } from "@/lib/fetch-with-auth"
 import type { ExamType, ExamTypesResponse } from "@/lib/types"
 import { getExamFields, type ExamField } from "@/lib/exam-fields"
+
+// Tipos para Exam Templates
+interface MeasurementUnit {
+  id: number
+  name: string
+  symbol: string
+  description?: string
+}
+
+interface ExamTemplateQuestion {
+  id: number
+  exam_template_id: number
+  parameter_name: string
+  parameter_code: string | null
+  description: string | null
+  unit_type_id: number
+  unit: string | null
+  reference_min: string | null
+  reference_max: string | null
+  reference_text: string | null
+  notes_placeholder: string | null
+  order: number
+  is_required: boolean
+  created_at: string
+  updated_at: string
+  unit_type: MeasurementUnit
+}
+
+interface ExamTemplate {
+  id: number
+  laboratory_id: number | null
+  organization_id: number
+  name: string
+  description: string | null
+  exam_type_id: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  exam_type: ExamType
+  questions: ExamTemplateQuestion[]
+}
+
+interface ExamTemplatesResponse {
+  success: boolean
+  data: ExamTemplate[]
+}
 import {
   Home,
   FileText,
@@ -36,7 +82,7 @@ import {
 export default function LabsPage() {
   const { user } = useAuth()
   // Modo: "analisis" (flujo actual) o "registro" (nuevo flujo)
-  const [mode, setMode] = useState<"analisis" | "registro">("analisis")
+  const [mode, setMode] = useState<"analisis" | "registro">("registro")
 
   // Estado para modo análisis (flujo existente)
   const [step, setStep] = useState(1)
@@ -46,9 +92,14 @@ export default function LabsPage() {
 
   // Estado para modo registro (nuevo flujo)
   const [regStep, setRegStep] = useState(1)
-  const [regSelectedExam, setRegSelectedExam] = useState<number | null>(null)
+  const [regSelectedTemplate, setRegSelectedTemplate] = useState<number | null>(null)
   const [regValues, setRegValues] = useState<Record<string, string>>({})
   const [showRegSuccess, setShowRegSuccess] = useState(false)
+  
+  // Estados para plantillas de examen
+  const [examTemplates, setExamTemplates] = useState<ExamTemplate[]>([])
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(true)
+  const [templatesError, setTemplatesError] = useState<string | null>(null)
   
   // Datos del paciente para el registro
   const [patientData, setPatientData] = useState({
@@ -69,7 +120,7 @@ export default function LabsPage() {
   const [isLoadingExams, setIsLoadingExams] = useState(true)
   const [examError, setExamError] = useState<string | null>(null)
 
-  // Cargar tipos de exámenes desde el API
+  // Cargar tipos de exámenes desde el API (para modo análisis)
   useEffect(() => {
     const fetchExamTypes = async () => {
       try {
@@ -99,6 +150,36 @@ export default function LabsPage() {
     fetchExamTypes()
   }, [])
 
+  // Cargar plantillas de examen desde el API (para modo registro)
+  useEffect(() => {
+    const fetchExamTemplates = async () => {
+      try {
+        setIsLoadingTemplates(true)
+        setTemplatesError(null)
+        const response = await fetchWithAuth(API_ENDPOINTS.examTemplates)
+        
+        if (!response.ok) {
+          throw new Error("Error al cargar las plantillas de exámenes")
+        }
+        
+        const data: ExamTemplatesResponse = await response.json()
+        
+        if (data.success && data.data) {
+          setExamTemplates(data.data)
+        } else {
+          throw new Error("Respuesta inválida del servidor")
+        }
+      } catch (error) {
+        console.error("Error al cargar plantillas de exámenes:", error)
+        setTemplatesError(error instanceof Error ? error.message : "Error desconocido")
+      } finally {
+        setIsLoadingTemplates(false)
+      }
+    }
+
+    fetchExamTemplates()
+  }, [])
+
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0] ?? null
     setFile(f)
@@ -118,9 +199,9 @@ export default function LabsPage() {
 
   // Registro: navegación
   const regNext = useCallback(() => {
-    if (regStep === 2 && !regSelectedExam) return
+    if (regStep === 2 && !regSelectedTemplate) return
     setRegStep((s) => Math.min(3, s + 1))
-  }, [regStep, regSelectedExam])
+  }, [regStep, regSelectedTemplate])
 
   const regBack = useCallback(() => {
     setRegStep((s) => Math.max(1, s - 1))
@@ -138,7 +219,7 @@ export default function LabsPage() {
       }
     } else {
       setRegStep(1)
-      setRegSelectedExam(null)
+      setRegSelectedTemplate(null)
       setRegValues({})
       setPatientData({
         patient_document: "",
@@ -153,25 +234,36 @@ export default function LabsPage() {
   
   // Función para enviar el registro al API
   const handleSaveExam = async () => {
+    if (!regSelectedTemplate) return
+    
     setSaveError(null)
     setIsSaving(true)
     
     try {
-      // Construir el array de resultados desde regValues
-      const fields = getExamFields(regSelectedExam)
-      const results = fields
-        .map((field, index) => {
+      // Obtener la plantilla seleccionada
+      const selectedTemplate = examTemplates.find(t => t.id === regSelectedTemplate)
+      if (!selectedTemplate) {
+        throw new Error("Plantilla no encontrada")
+      }
+      
+      // Construir el array de resultados desde regValues usando las preguntas de la plantilla
+      const sortedQuestions = [...selectedTemplate.questions].sort((a, b) => a.order - b.order)
+      const results = sortedQuestions
+        .map((question, index) => {
           const value = regValues[`${index}_value`]
+          if (!value && question.is_required) {
+            throw new Error(`El campo "${question.parameter_name}" es requerido`)
+          }
           if (!value) return null // Solo incluir si tiene valor
           
           return {
-            parameter_name: field.parameter_name,
-            parameter_code: field.parameter_code,
+            parameter_name: question.parameter_name,
+            parameter_code: question.parameter_code || undefined,
             value: value,
-            unit: field.unit,
-            reference_min: field.reference_min,
-            reference_max: field.reference_max,
-            reference_text: field.reference_text,
+            unit: question.unit_type.symbol,
+            reference_min: question.reference_min || undefined,
+            reference_max: question.reference_max || undefined,
+            reference_text: question.reference_text || undefined,
             status: "normal", // Por defecto, se puede calcular según referencias
             notes: regValues[`${index}_notes`] || undefined,
           }
@@ -188,7 +280,7 @@ export default function LabsPage() {
         patient_last_name: patientData.patient_last_name,
         patient_email: "", // Se genera automáticamente en el backend
         document_type: patientData.document_type,
-        exam_type_id: regSelectedExam,
+        exam_type_id: selectedTemplate.exam_type_id,
         exam_date: examDate,
         patient_notes: patientData.patient_notes || undefined,
         results: results,
@@ -219,7 +311,7 @@ export default function LabsPage() {
       // Éxito
       setShowRegSuccess(true)
       setRegStep(1)
-      setRegSelectedExam(null)
+      setRegSelectedTemplate(null)
       setRegValues({})
       setPatientData({
         patient_document: "",
@@ -569,45 +661,60 @@ export default function LabsPage() {
                   {regStep === 2 && (
                     <Card className="rounded-2xl border border-purple-100 shadow-sm">
                       <CardContent className="p-6">
-                        <h2 className="text-lg font-semibold text-gray-900 mb-4">2. Selecciona el tipo de examen</h2>
+                        <h2 className="text-lg font-semibold text-gray-900 mb-4">2. Selecciona la plantilla de examen</h2>
                         
-                        {isLoadingExams ? (
+                        {isLoadingTemplates ? (
                           <div className="flex items-center justify-center py-12">
                             <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
-                            <span className="ml-3 text-gray-600">Cargando tipos de exámenes...</span>
+                            <span className="ml-3 text-gray-600">Cargando plantillas de exámenes...</span>
                           </div>
-                        ) : examError ? (
+                        ) : templatesError ? (
                           <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-xl">
                             <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
                             <div>
-                              <p className="text-sm font-medium text-red-900">Error al cargar exámenes</p>
-                              <p className="text-sm text-red-700">{examError}</p>
+                              <p className="text-sm font-medium text-red-900">Error al cargar plantillas</p>
+                              <p className="text-sm text-red-700">{templatesError}</p>
                             </div>
+                          </div>
+                        ) : examTemplates.length === 0 ? (
+                          <div className="text-center py-12 text-gray-500">
+                            <p>No hay plantillas de exámenes disponibles</p>
+                            <p className="text-sm mt-2">Contacta al administrador para crear plantillas</p>
                           </div>
                         ) : (
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {examTypes.map((ex) => (
+                            {examTemplates
+                              .filter(template => template.is_active)
+                              .map((template) => (
                               <button
-                                key={ex.id}
-                                onClick={() => setRegSelectedExam(ex.id)}
+                                key={template.id}
+                                onClick={() => setRegSelectedTemplate(template.id)}
                                 className={`w-full text-left p-4 rounded-xl border transition-all ${
-                                  regSelectedExam === ex.id
+                                  regSelectedTemplate === template.id
                                     ? "border-purple-500 bg-purple-50 shadow-sm"
                                     : "border-gray-200 hover:border-gray-300 bg-white"
                                 }`}
                               >
                                 <div className="flex flex-col gap-2">
                                   <div className="flex items-center justify-between">
-                                    <span className="text-sm font-medium text-gray-900">{ex.name}</span>
-                                    {regSelectedExam === ex.id ? (
+                                    <span className="text-sm font-medium text-gray-900">{template.name}</span>
+                                    {regSelectedTemplate === template.id ? (
                                       <CheckCircle2 className="w-5 h-5 text-purple-600 flex-shrink-0" />
                                     ) : (
                                       <ChevronRight className="w-5 h-5 text-gray-300 flex-shrink-0" />
                                     )}
                                   </div>
-                                  {ex.description && (
-                                    <p className="text-xs text-gray-500 line-clamp-2">{ex.description}</p>
+                                  {template.description && (
+                                    <p className="text-xs text-gray-500 line-clamp-2">{template.description}</p>
                                   )}
+                                  <div className="flex items-center gap-3 mt-1">
+                                    <span className="text-xs text-gray-500">
+                                      Tipo: <span className="font-medium">{template.exam_type.name}</span>
+                                    </span>
+                                    <span className="text-xs text-gray-500">
+                                      Preguntas: <span className="font-medium">{template.questions.length}</span>
+                                    </span>
+                                  </div>
                                 </div>
                               </button>
                             ))}
@@ -618,7 +725,7 @@ export default function LabsPage() {
                           <Button variant="outline" onClick={regBack}>
                             Atrás
                           </Button>
-                          <Button onClick={regNext} disabled={!regSelectedExam || isLoadingExams} className="bg-purple-600 hover:bg-purple-700 text-white">
+                          <Button onClick={regNext} disabled={!regSelectedTemplate || isLoadingTemplates} className="bg-purple-600 hover:bg-purple-700 text-white">
                             Siguiente
                           </Button>
                         </div>
@@ -630,87 +737,114 @@ export default function LabsPage() {
                     <Card className="rounded-2xl border border-purple-100 shadow-sm">
                       <CardContent className="p-6">
                         <h2 className="text-lg font-semibold text-gray-900 mb-2">3. Campos del examen</h2>
-                        <p className="text-sm text-gray-600 mb-6">
-                          Examen: <span className="font-medium text-gray-900">{labelForExam(regSelectedExam, examTypes)}</span>
-                        </p>
+                        {regSelectedTemplate && (() => {
+                          const selectedTemplate = examTemplates.find(t => t.id === regSelectedTemplate)
+                          if (!selectedTemplate) return null
+                          return (
+                            <p className="text-sm text-gray-600 mb-6">
+                              Plantilla: <span className="font-medium text-gray-900">{selectedTemplate.name}</span>
+                              {selectedTemplate.exam_type && (
+                                <span className="ml-2 text-gray-500">({selectedTemplate.exam_type.name})</span>
+                              )}
+                            </p>
+                          )
+                        })()}
 
-                        {getExamFields(regSelectedExam).length > 0 ? (
-                          <div className="space-y-6">
-                            {getExamFields(regSelectedExam).map((field, index) => (
-                              <div key={index} className="rounded-lg border border-gray-200 bg-white p-4">
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                  {/* Nombre del parámetro y valor */}
-                                  <div className="md:col-span-2 space-y-3">
-                                    <div className="flex items-start gap-2">
-                                      <div className="flex-1">
-                                        <label className="text-sm font-medium text-gray-900 block mb-1">
-                                          {field.parameter_name}
-                                          {field.parameter_code && (
-                                            <span className="ml-2 text-xs text-gray-500">({field.parameter_code})</span>
+                        {regSelectedTemplate && (() => {
+                          const selectedTemplate = examTemplates.find(t => t.id === regSelectedTemplate)
+                          if (!selectedTemplate) return null
+                          
+                          const sortedQuestions = [...selectedTemplate.questions].sort((a, b) => a.order - b.order)
+                          
+                          if (sortedQuestions.length === 0) {
+                            return (
+                              <div className="text-center py-8 text-gray-500">
+                                <p>No hay preguntas definidas para esta plantilla.</p>
+                              </div>
+                            )
+                          }
+                          
+                          return (
+                            <div className="space-y-6">
+                              {sortedQuestions.map((question, index) => (
+                                <div key={question.id} className="rounded-lg border border-gray-200 bg-white p-4">
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    {/* Nombre del parámetro y valor */}
+                                    <div className="md:col-span-2 space-y-3">
+                                      <div className="flex items-start gap-2">
+                                        <div className="flex-1">
+                                          <label className="text-sm font-medium text-gray-900 block mb-1">
+                                            {question.parameter_name}
+                                            {question.is_required && (
+                                              <span className="ml-2 text-xs text-red-600">*</span>
+                                            )}
+                                            {question.parameter_code && (
+                                              <span className="ml-2 text-xs text-gray-500">({question.parameter_code})</span>
+                                            )}
+                                          </label>
+                                          {question.description && (
+                                            <p className="text-xs text-gray-500 mb-2">{question.description}</p>
                                           )}
-                                        </label>
+                                          <Input
+                                            placeholder={question.notes_placeholder || "Ingrese el valor"}
+                                            value={regValues[`${index}_value`] ?? ""}
+                                            onChange={(e) => setRegValues((prev) => ({ ...prev, [`${index}_value`]: e.target.value }))}
+                                            className="w-full"
+                                            required={question.is_required}
+                                          />
+                                        </div>
+                                        <div className="w-24">
+                                          <label className="text-xs text-gray-600 block mb-1">Unidad</label>
+                                          <Input
+                                            value={question.unit_type.symbol}
+                                            disabled
+                                            className="bg-gray-50 text-sm"
+                                          />
+                                        </div>
+                                      </div>
+
+                                      {/* Notas opcionales */}
+                                      <div>
+                                        <label className="text-xs text-gray-600 block mb-1">Notas (opcional)</label>
                                         <Input
-                                          placeholder={field.placeholder || "Ingrese el valor"}
-                                          value={regValues[`${index}_value`] ?? ""}
-                                          onChange={(e) => setRegValues((prev) => ({ ...prev, [`${index}_value`]: e.target.value }))}
+                                          placeholder="Observaciones adicionales"
+                                          value={regValues[`${index}_notes`] ?? ""}
+                                          onChange={(e) => setRegValues((prev) => ({ ...prev, [`${index}_notes`]: e.target.value }))}
                                           className="w-full"
                                         />
                                       </div>
-                                      <div className="w-24">
-                                        <label className="text-xs text-gray-600 block mb-1">Unidad</label>
-                                        <Input
-                                          value={field.unit}
-                                          disabled
-                                          className="bg-gray-50 text-sm"
-                                        />
-                                      </div>
                                     </div>
 
-                                    {/* Notas opcionales */}
-                                    <div>
-                                      <label className="text-xs text-gray-600 block mb-1">Notas (opcional)</label>
-                                      <Input
-                                        placeholder="Observaciones adicionales"
-                                        value={regValues[`${index}_notes`] ?? ""}
-                                        onChange={(e) => setRegValues((prev) => ({ ...prev, [`${index}_notes`]: e.target.value }))}
-                                        className="w-full"
-                                      />
+                                    {/* Referencias */}
+                                    <div className="space-y-2">
+                                      <label className="text-xs font-medium text-gray-700 block">Valores de referencia</label>
+                                      {question.reference_min && question.reference_max ? (
+                                        <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                                          <div>Mínimo: <span className="font-medium">{question.reference_min} {question.unit_type.symbol}</span></div>
+                                          <div>Máximo: <span className="font-medium">{question.reference_max} {question.unit_type.symbol}</span></div>
+                                        </div>
+                                      ) : question.reference_max ? (
+                                        <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                                          Máximo: <span className="font-medium">{question.reference_max} {question.unit_type.symbol}</span>
+                                        </div>
+                                      ) : question.reference_min ? (
+                                        <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                                          Mínimo: <span className="font-medium">{question.reference_min} {question.unit_type.symbol}</span>
+                                        </div>
+                                      ) : question.reference_text ? (
+                                        <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                                          {question.reference_text}
+                                        </div>
+                                      ) : (
+                                        <div className="text-xs text-gray-500 italic">Sin referencia</div>
+                                      )}
                                     </div>
-                                  </div>
-
-                                  {/* Referencias */}
-                                  <div className="space-y-2">
-                                    <label className="text-xs font-medium text-gray-700 block">Valores de referencia</label>
-                                    {field.reference_min && field.reference_max ? (
-                                      <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
-                                        <div>Mínimo: <span className="font-medium">{field.reference_min} {field.unit}</span></div>
-                                        <div>Máximo: <span className="font-medium">{field.reference_max} {field.unit}</span></div>
-                                      </div>
-                                    ) : field.reference_max ? (
-                                      <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
-                                        Máximo: <span className="font-medium">{field.reference_max} {field.unit}</span>
-                                      </div>
-                                    ) : field.reference_min ? (
-                                      <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
-                                        Mínimo: <span className="font-medium">{field.reference_min} {field.unit}</span>
-                                      </div>
-                                    ) : field.reference_text ? (
-                                      <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
-                                        {field.reference_text}
-                                      </div>
-                                    ) : (
-                                      <div className="text-xs text-gray-500 italic">Sin referencia</div>
-                                    )}
                                   </div>
                                 </div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-center py-8 text-gray-500">
-                            <p>No hay campos definidos para este tipo de examen.</p>
-                          </div>
-                        )}
+                              ))}
+                            </div>
+                          )
+                        })()}
 
                         {/* Error de guardado */}
                         {saveError && (
@@ -733,7 +867,7 @@ export default function LabsPage() {
                             </Button>
                             <Button
                               className="bg-purple-600 hover:bg-purple-700 text-white"
-                              disabled={getExamFields(regSelectedExam).length === 0 || isSaving}
+                              disabled={!regSelectedTemplate || isSaving}
                               onClick={handleSaveExam}
                             >
                               {isSaving ? (

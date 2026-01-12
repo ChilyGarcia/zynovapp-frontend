@@ -1,5 +1,13 @@
 // Utilidades de autenticación
 
+export interface LaboratoryInfo {
+  id: number
+  name: string
+  logo: string | null
+  logo_url: string | null
+  color: string | null
+}
+
 export interface User {
   id: number
   name: string
@@ -9,6 +17,9 @@ export interface User {
   email_verified_at: string | null
   created_at: string
   updated_at: string
+  profile_picture?: string | null
+  profile_picture_url?: string | null
+  laboratory?: LaboratoryInfo
 }
 
 export interface AuthResponse {

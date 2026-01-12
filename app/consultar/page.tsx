@@ -12,7 +12,7 @@ import { useAuth } from "@/contexts/auth-context"
 import { API_ENDPOINTS } from "@/lib/api-config"
 import { getAuthToken } from "@/lib/auth"
 import { fetchWithAuth } from "@/lib/fetch-with-auth"
-import type { Exam, ExamDetail, PatientExamsResponse, ExamDetailResponse, ExamResult } from "@/lib/types"
+import type { Exam, ExamDetail, PatientExamsResponse, ExamDetailResponse, ExamResult, LaboratoryExamsSearchResponse, PatientSearchInfo } from "@/lib/types"
 import {
   Home,
   FileText,
@@ -47,6 +47,7 @@ export default function ConsultarPage() {
   const [searchDocument, setSearchDocument] = useState("")
   const [isSearching, setIsSearching] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
+  const [foundPatient, setFoundPatient] = useState<PatientSearchInfo | null>(null)
 
   // Cargar exámenes del paciente (solo si es paciente)
   useEffect(() => {
@@ -97,13 +98,14 @@ export default function ConsultarPage() {
     }
   }, [user])
 
-  // Función de búsqueda para laboratorios (placeholder hasta que me des el endpoint)
+  // Función de búsqueda para laboratorios
   const handleSearchExams = useCallback(async () => {
     if (!searchDocument.trim()) return
     
     setIsSearching(true)
     setError(null)
     setHasSearched(true)
+    setFoundPatient(null)
     
     try {
       const token = getAuthToken()
@@ -111,21 +113,32 @@ export default function ConsultarPage() {
         throw new Error("No hay token de autenticación")
       }
       
-      // TODO: Implementar cuando me des el endpoint
-      // const response = await fetchWithAuth(`${API_ENDPOINTS.searchExams}?document=${searchDocument}`, {
-      //   headers: {
-      //     Authorization: `Bearer ${token}`,
-      //     "Content-Type": "application/json",
-      //   },
-      // })
+      const response = await fetchWithAuth(API_ENDPOINTS.laboratoryExamsSearch(searchDocument.trim()), {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      })
       
-      // Por ahora, simular búsqueda vacía
-      console.log("Buscando exámenes para documento:", searchDocument)
-      setExams([])
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || "Error al buscar exámenes")
+      }
+      
+      const data: LaboratoryExamsSearchResponse = await response.json()
+      
+      if (data.success) {
+        setFoundPatient(data.patient)
+        setExams(data.data || [])
+      } else {
+        throw new Error("Respuesta inválida del servidor")
+      }
       
     } catch (err) {
       console.error("Error al buscar exámenes:", err)
       setError(err instanceof Error ? err.message : "Error en la búsqueda")
+      setExams([])
+      setFoundPatient(null)
     } finally {
       setIsSearching(false)
     }
@@ -318,6 +331,42 @@ export default function ConsultarPage() {
                 </Card>
               )}
 
+              {/* Información del paciente encontrado (solo para laboratorios) */}
+              {user?.role === "laboratory" && foundPatient && (
+                <Card className="rounded-2xl border border-green-100 shadow-sm mb-6 bg-green-50">
+                  <CardContent className="p-6">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                        <Users className="w-6 h-6 text-green-600" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                          {foundPatient.first_name} {foundPatient.last_name}
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                          <div>
+                            <span className="text-gray-600">Documento:</span>
+                            <span className="ml-2 font-medium text-gray-900">
+                              {foundPatient.document_type} {foundPatient.document_number}
+                            </span>
+                          </div>
+                          {foundPatient.blood_type && (
+                            <div>
+                              <span className="text-gray-600">Tipo de sangre:</span>
+                              <span className="ml-2 font-medium text-gray-900">{foundPatient.blood_type}</span>
+                            </div>
+                          )}
+                          <div>
+                            <span className="text-gray-600">Total de exámenes:</span>
+                            <span className="ml-2 font-medium text-gray-900">{exams.length}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Lista de exámenes */}
               {isLoading ? (
                 <div className="flex items-center justify-center py-12">
@@ -339,11 +388,17 @@ export default function ConsultarPage() {
                     {user?.role === "laboratory" ? (
                       <>
                         <h3 className="text-lg font-medium text-gray-900 mb-2">
-                          {hasSearched ? "No se encontraron exámenes" : "Busca exámenes de un paciente"}
+                          {hasSearched 
+                            ? foundPatient 
+                              ? "No se encontraron exámenes para este paciente"
+                              : "No se encontró el paciente"
+                            : "Busca exámenes de un paciente"}
                         </h3>
                         <p className="text-gray-600">
                           {hasSearched 
-                            ? `No se encontraron exámenes para el documento: ${searchDocument}`
+                            ? foundPatient
+                              ? `El paciente ${foundPatient.first_name} ${foundPatient.last_name} (${foundPatient.document_number}) no tiene exámenes registrados.`
+                              : `No se encontró ningún paciente con el documento: ${searchDocument}`
                             : "Ingresa el número de documento del paciente para buscar sus exámenes."}
                         </p>
                       </>
@@ -380,7 +435,7 @@ export default function ConsultarPage() {
                                   <div className="flex items-center gap-2 text-gray-600">
                                     <Building2 className="w-4 h-4" />
                                     <span className="font-medium text-gray-700">Laboratorio:</span>
-                                    {exam.laboratory.name}
+                                    {exam.laboratory?.name || "No especificado"}
                                   </div>
                                   <div className="flex items-center gap-2 text-gray-600">
                                     <span className="font-medium text-gray-700">N° de Orden:</span>
@@ -436,7 +491,7 @@ export default function ConsultarPage() {
                   <div className="mt-2 space-y-1 text-sm">
                     <div><span className="font-medium">Código:</span> {selectedExam.exam_type.code}</div>
                     <div><span className="font-medium">Fecha:</span> {formatDate(selectedExam.exam_date)}</div>
-                    <div><span className="font-medium">Laboratorio:</span> {selectedExam.laboratory.name}</div>
+                    <div><span className="font-medium">Laboratorio:</span> {selectedExam.laboratory?.name || "No especificado"}</div>
                     <div><span className="font-medium">Estado:</span> <span className={`px-2 py-0.5 rounded-full text-xs ${getStatusColor(selectedExam.status)}`}>{getStatusLabel(selectedExam.status)}</span></div>
                   </div>
                 </DialogDescription>

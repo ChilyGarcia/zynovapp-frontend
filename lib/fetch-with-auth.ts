@@ -2,15 +2,42 @@
 
 import { clearAuth } from "./auth"
 
+import { getAuthToken } from "./auth"
+
 /**
  * Wrapper de fetch que maneja automáticamente errores 401 (token expirado)
  * Cuando detecta un 401, limpia la sesión y redirige al login
+ * Agrega automáticamente el token de autenticación a las peticiones
  */
 export async function fetchWithAuth(
   input: RequestInfo | URL,
   init?: RequestInit
 ): Promise<Response> {
-  const response = await fetch(input, init)
+  const token = getAuthToken()
+  
+  // Preparar headers
+  const headers = new Headers(init?.headers)
+  
+  // Si hay token, agregar header de autorización
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`)
+  }
+  
+  // Si no es FormData, agregar Content-Type
+  // (FormData establece automáticamente su Content-Type con boundary)
+  if (!(init?.body instanceof FormData)) {
+    if (!headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json")
+    }
+  }
+  
+  // Crear opciones de fetch con headers actualizados
+  const fetchOptions: RequestInit = {
+    ...init,
+    headers,
+  }
+  
+  const response = await fetch(input, fetchOptions)
 
   // Si es 401, el token expiró o es inválido
   if (response.status === 401) {

@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -14,10 +15,21 @@ import {
 import { Bell, ChevronDown, Settings, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
+import { darkenColor } from "@/lib/color-utils";
 
 export default function NavbarComponent() {
-  const { user, logout } = useAuth()
+  const { user, logout, laboratoryColor, laboratoryLogo } = useAuth()
   const router = useRouter()
+  const [imageKey, setImageKey] = useState(Date.now())
+  
+  // Forzar actualización de la imagen cuando cambie el usuario
+  useEffect(() => {
+    setImageKey(Date.now())
+  }, [user?.profile_picture_url, user?.updated_at])
+
+  // Color por defecto si no hay color del laboratorio
+  const defaultColor = "#5B4BDE" // purple-500
+  const activeColor = laboratoryColor || defaultColor
 
   // Función para obtener las iniciales del nombre
   const getInitials = (name: string) => {
@@ -43,10 +55,9 @@ export default function NavbarComponent() {
     router.push("/")
   }
 
-  // Función para ir a configuración (placeholder por ahora)
+  // Función para ir a configuración
   const handleSettings = () => {
-    // TODO: Implementar página de configuración
-    console.log("Ir a configuración")
+    router.push("/configuracion")
   }
 
   return (
@@ -81,9 +92,18 @@ export default function NavbarComponent() {
 
           {/* Center Buttons */}
           <div className="flex items-center gap-3 flex-shrink-0">
-            <Button className="bg-[#5B4BDE] hover:opacity-90 text-white rounded-full h-10 px-6 shadow-sm">
+            {/* <Button 
+              className="hover:opacity-90 text-white rounded-full h-10 px-6 shadow-sm transition-colors"
+              style={{ backgroundColor: activeColor }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = darkenColor(activeColor, 20)
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = activeColor
+              }}
+            >
               Filtro
-            </Button>
+            </Button> */}
             {/* Credits Button */}
             <Button className="bg-gradient-to-r from-[#6A00F4] via-[#9B5DE5] to-[#F15BB5] hover:opacity-90 text-white rounded-full h-10 px-4 flex items-center gap-2 shadow-sm">
               <svg
@@ -102,22 +122,78 @@ export default function NavbarComponent() {
 
             {/* Notification Bell */}
             <button className="p-2 text-gray-500 hover:text-gray-700 relative">
-              <span className="absolute -inset-1 bg-gradient-to-tr from-purple-500 to-indigo-500 opacity-20 rounded-full" />
+              <span 
+                className="absolute -inset-1 opacity-20 rounded-full"
+                style={{
+                  background: `linear-gradient(to top right, ${activeColor}, ${activeColor})`,
+                }}
+              />
               <Bell className="w-5 h-5 relative" />
-              <div className="absolute top-0 right-0 w-2 h-2 bg-purple-500 rounded-full ring-2 ring-white"></div>
+              <div 
+                className="absolute top-0 right-0 w-2 h-2 rounded-full ring-2 ring-white"
+                style={{ backgroundColor: activeColor }}
+              ></div>
             </button>
 
             {/* User Profile */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <div className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 rounded-lg px-2 py-1 transition-colors">
-                  <Avatar className="w-8 h-8">
-                    <AvatarImage src="/professional-woman-doctor.png" />
-                    <AvatarFallback>{user ? getInitials(user.name) : "U"}</AvatarFallback>
+                  <Avatar className="w-10 h-10 border-2" style={{ borderColor: activeColor + "40" }}>
+                    {/* Prioridad: 1. Foto de perfil del usuario, 2. Logo del laboratorio (solo si es laboratorio), 3. Imagen por defecto */}
+                    {user?.profile_picture_url ? (
+                      <AvatarImage 
+                        key={imageKey}
+                        src={`${user.profile_picture_url}?t=${imageKey}`}
+                        alt={user?.name || "Usuario"}
+                        className="object-cover"
+                        onError={(e) => {
+                          // Si falla la carga, intentar con el logo del laboratorio o fallback
+                          const target = e.target as HTMLImageElement
+                          if (user?.role === "laboratory" && laboratoryLogo) {
+                            target.src = `${laboratoryLogo}?t=${imageKey}`
+                          } else {
+                            target.src = "/professional-woman-doctor.png"
+                          }
+                        }}
+                      />
+                    ) : user?.role === "laboratory" && laboratoryLogo ? (
+                      <AvatarImage 
+                        key={imageKey}
+                        src={`${laboratoryLogo}?t=${imageKey}`}
+                        alt={user?.name || "Usuario"}
+                        className="object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement
+                          target.src = "/professional-woman-doctor.png"
+                        }}
+                      />
+                    ) : (
+                      <AvatarImage 
+                        src="/professional-woman-doctor.png" 
+                        alt={user?.name || "Usuario"}
+                        className="object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement
+                          target.src = ""
+                        }}
+                      />
+                    )}
+                    <AvatarFallback 
+                      className="text-sm font-semibold"
+                      style={{ 
+                        backgroundColor: activeColor + "20",
+                        color: activeColor 
+                      }}
+                    >
+                      {user ? getInitials(user.name) : "U"}
+                    </AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col">
                     <span className="text-sm font-medium text-gray-700">
-                      {user?.name || "Usuario"}
+                      {user?.role === "laboratory" && user?.laboratory?.name 
+                        ? user.laboratory.name 
+                        : user?.name || "Usuario"}
                     </span>
                     <span className="text-xs text-gray-500">{user ? getRoleLabel(user.role) : "User"}</span>
                   </div>

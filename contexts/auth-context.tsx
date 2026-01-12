@@ -12,6 +12,8 @@ interface AuthContextType {
   setUser: (user: User | null) => void
   logout: () => void
   refreshUser: () => Promise<void>
+  laboratoryColor: string | null
+  laboratoryLogo: string | null
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -102,6 +104,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshUser()
   }, [refreshUser])
 
+  // Obtener color y logo del laboratorio si existe
+  const laboratoryColor = user?.laboratory?.color || null
+  const laboratoryLogo = user?.laboratory?.logo_url || null
+
   const value: AuthContextType = {
     user,
     isLoading,
@@ -109,6 +115,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser,
     logout,
     refreshUser,
+    laboratoryColor,
+    laboratoryLogo,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
