@@ -71,21 +71,18 @@ export default function SidebarComponent() {
   return (
     <div className="w-64 bg-white/90 backdrop-blur-sm shadow-sm border-r border-gray-200 flex flex-col">
       <div className="p-6 border-b border-gray-100">
-        <div className="flex items-center gap-2">
-          {laboratoryLogo ? (
-            <img 
-              src={laboratoryLogo} 
-              alt="Logo del Laboratorio" 
-              className="h-8 w-auto object-contain" 
-              onError={(e) => {
-                // Si falla la carga del logo, usar el logo por defecto
-                const target = e.target as HTMLImageElement
-                target.src = "/icons/zynovapp-icon.png"
-              }}
-            />
-          ) : (
-            <img src="/icons/zynovapp-icon.png" alt="Zynovapp" className="h-5 w-auto" />
-          )}
+        <div className="flex items-center justify-center">
+          <img 
+            src="/icons/viannis.jpg" 
+            alt="Diannys Logo" 
+            className="h-24 w-auto object-contain max-w-full transition-opacity hover:opacity-90" 
+            onError={(e) => {
+              // Si falla la carga del logo, usar el logo por defecto
+              const target = e.target as HTMLImageElement
+              target.src = "/icons/zynovapp-icon.png"
+              target.className = "h-5 w-auto"
+            }}
+          />
         </div>
       </div>
 
