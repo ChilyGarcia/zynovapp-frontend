@@ -133,9 +133,7 @@ export interface PatientSearchInfo {
   document_number: string
   document_type: string
   blood_type: string | null
-}
-
-export interface LaboratoryExamsSearchResponse {
+}export interface LaboratoryExamsSearchResponse {
   success: boolean
   patient: PatientSearchInfo
   exams_count: number

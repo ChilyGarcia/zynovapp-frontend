@@ -20,6 +20,29 @@ export interface User {
   profile_picture?: string | null
   profile_picture_url?: string | null
   laboratory?: LaboratoryInfo
+  /** Algunas respuestas de `/auth/me` envían la org aquí en lugar de anidar `laboratory` */
+  organization_id?: number | null
+  laboratory_id?: number | null
+}
+
+/**
+ * ID de organización/laboratorio para payloads (muestras, exámenes, etc.).
+ * Prioriza `laboratory.id`, luego campos planos que a veces envía el backend.
+ */
+export function resolveOrganizationId(
+  user: User | null | undefined
+): number | undefined {
+  if (!user) return undefined
+  if (typeof user.laboratory?.id === "number") return user.laboratory.id
+  if (typeof user.organization_id === "number") return user.organization_id
+  if (typeof user.laboratory_id === "number") return user.laboratory_id
+  const raw = user as Record<string, unknown>
+  const org = raw.organization
+  if (org && typeof org === "object" && org !== null && "id" in org) {
+    const id = (org as { id: unknown }).id
+    if (typeof id === "number") return id
+  }
+  return undefined
 }
 
 export interface AuthResponse {

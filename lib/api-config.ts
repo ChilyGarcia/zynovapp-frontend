@@ -37,6 +37,61 @@ export const API_ENDPOINTS = {
     if (status) params.append('status', status)
     return `${API_URL}/api/laboratory/exams/search?${params.toString()}`
   },
+  /** Tipos de solicitud (organización) */
+  laboratoryRequestTypes: `${API_URL}/api/laboratory/request-types`,
+  laboratoryRequestType: (id: number) =>
+    `${API_URL}/api/laboratory/request-types/${id}`,
+  /** Personal de la organización (selects médico / auxiliar) */
+  laboratoryStaff: `${API_URL}/api/laboratory/staff`,
+  /** Opciones para el formulario de nueva orden (selects + prioridades + pago) */
+  laboratoryOrderFormOptions: `${API_URL}/api/laboratory/exams/order-form-options`,
+  /** Estados del flujo de examen (etiquetas y orden) */
+  laboratoryExamWorkflowStatuses: `${API_URL}/api/laboratory/exams/workflow-statuses`,
+  /** Cambiar estado del examen (médico asignado) */
+  laboratoryExamStatus: (id: number) =>
+    `${API_URL}/api/laboratory/exams/${id}/status`,
+  /** Muestras de inventario disponibles para vincular al pasar a muestra_tomada */
+  laboratoryExamAvailableSamples: (examId: number) =>
+    `${API_URL}/api/laboratory/exams/${examId}/available-samples`,
+  /** Búsqueda de paciente por documento (solo organización del usuario) — siempre 200, revisar `found` */
+  laboratoryPatientsSearch: (documentNumber: string) => {
+    const q = new URLSearchParams({
+      document_number: documentNumber.trim(),
+    })
+    return `${API_URL}/api/laboratory/patients/search?${q.toString()}`
+  },
+  laboratoryPatient: (id: number) =>
+    `${API_URL}/api/laboratory/patients/${id}`,
+  /** Lista de exámenes con filtros opcionales */
+  laboratoryExamsQuery: (params?: Record<string, string | number | undefined>) => {
+    const q = new URLSearchParams()
+    if (params) {
+      for (const [k, v] of Object.entries(params)) {
+        if (v !== undefined && v !== "") q.set(k, String(v))
+      }
+    }
+    const s = q.toString()
+    return s
+      ? `${API_URL}/api/laboratory/exams?${s}`
+      : `${API_URL}/api/laboratory/exams`
+  },
+  /** Inventario de muestras (organización) */
+  laboratorySamples: `${API_URL}/api/laboratory/samples`,
+  laboratorySamplesStats: `${API_URL}/api/laboratory/samples/stats`,
+  laboratorySample: (id: number) =>
+    `${API_URL}/api/laboratory/samples/${id}`,
+  laboratorySamplesQuery: (params?: Record<string, string | number | undefined>) => {
+    const q = new URLSearchParams()
+    if (params) {
+      for (const [k, v] of Object.entries(params)) {
+        if (v !== undefined && v !== "") q.set(k, String(v))
+      }
+    }
+    const s = q.toString()
+    return s
+      ? `${API_URL}/api/laboratory/samples?${s}`
+      : `${API_URL}/api/laboratory/samples`
+  },
   // Agrega más endpoints aquí según necesites
 }
 
