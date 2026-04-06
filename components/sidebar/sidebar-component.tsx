@@ -66,7 +66,7 @@ export default function SidebarComponent() {
       <div className="p-6 border-b border-violet-900/40">
         <div className="flex items-center justify-center">
           <img
-            src="/icons/viannis.jpg"
+            src="/icons/zynovapp-icon-login.png"
             alt="Logo"
             className="h-20 w-auto object-contain max-w-full rounded-lg opacity-95"
             onError={(e) => {
