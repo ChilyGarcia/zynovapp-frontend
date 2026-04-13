@@ -63,16 +63,16 @@ export default function SidebarComponent() {
 
   return (
     <div className="w-64 shrink-0 bg-[#1e0f33] flex flex-col min-h-screen border-r border-violet-950/50">
-      <div className="p-6 border-b border-violet-900/40">
+      <div className="px-4 py-4 border-b border-violet-900/40">
         <div className="flex items-center justify-center">
           <img
             src="/icons/zynovapp-icon-login.png"
             alt="Logo"
-            className="h-20 w-auto object-contain max-w-full rounded-lg opacity-95"
+            className="h-11 w-auto object-contain max-w-full rounded-md opacity-95"
             onError={(e) => {
               const target = e.target as HTMLImageElement
               target.src = "/icons/zynovapp-icon.png"
-              target.className = "h-8 w-auto"
+              target.className = "h-8 w-auto object-contain"
             }}
           />
         </div>
