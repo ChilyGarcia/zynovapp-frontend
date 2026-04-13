@@ -93,8 +93,25 @@ export interface OrderFormOptionPriority {
   label: string
 }
 
+/** Fila de `request_types` en order-form-options (códigos del backend) */
+export interface OrderFormOptionRequestType {
+  id: number
+  name: string
+  code?: string | null
+  sort_order?: number
+}
+
+/** Códigos de tipo de solicitud (tabla request_types / seed Laravel) */
+export const REQUEST_TYPE_CODES = {
+  LAB_EXAM: "examen_laboratorio",
+  CONSULTATIONS: "consultas",
+  IMAGING: "imagenes_diagnosticas",
+  MEDICATIONS: "medicamentos",
+  OTHER: "otros",
+} as const
+
 export interface OrderFormOptionsData {
-  request_types: { id: number; name: string }[]
+  request_types: OrderFormOptionRequestType[]
   exam_types: { id: number; name: string }[]
   staff: { id: number; name: string }[]
   priorities: OrderFormOptionPriority[]
@@ -134,7 +151,7 @@ export interface LaboratoryExamApi {
     document_number?: string
     document_type?: string
   }
-  request_type?: { id: number; name: string }
+  request_type?: { id: number; name: string; code?: string | null }
   requesting_doctor?: { id: number; name: string }
   assigned_doctor?: { id: number; name: string } | null
   assignee?: { id: number; name: string } | null
@@ -145,6 +162,11 @@ export interface LaboratoryExamApi {
   assigned_sample_id?: number | null
   sample_id?: number | null
   assigned_sample?: { id?: number } | null
+  /** Observaciones generales del examen (si el API las envía en listado o detalle) */
+  observations?: string | null
+  /** Historial de cambios de estado con observaciones (nombre de clave según backend) */
+  status_logs?: unknown[]
+  status_history?: unknown[]
 }
 
 export interface CreateLaboratoryExamPayload {

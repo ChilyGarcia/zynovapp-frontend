@@ -7,12 +7,57 @@ import {
   type LaboratoryExamApi,
   type LaboratoryPatientSearchData,
   type LaboratoryRequestType,
+  type OrderFormOptionRequestType,
   type OrderFormOptionsData,
   type LaboratoryStaffUser,
   type LaboratoryWorkflowStatus,
   type UpdateExamStatusPayload,
 } from "@/lib/laboratory-ordenes-types"
 import type { SampleApi } from "@/lib/samples-types"
+
+/** Normaliza y ordena `request_types` del order-form-options (code, sort_order). */
+function parseRequestTypesForOrderForm(raw: unknown): OrderFormOptionRequestType[] {
+  if (!Array.isArray(raw)) return []
+  const out: OrderFormOptionRequestType[] = []
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue
+    const o = item as Record<string, unknown>
+    const idRaw = o.id
+    const id =
+      typeof idRaw === "number"
+        ? idRaw
+        : typeof idRaw === "string"
+          ? Number.parseInt(idRaw, 10)
+          : NaN
+    if (!Number.isFinite(id)) continue
+    const name =
+      typeof o.name === "string" && o.name.trim()
+        ? o.name.trim()
+        : typeof o.code === "string" && o.code.trim()
+          ? o.code.trim()
+          : "Sin nombre"
+    const code =
+      typeof o.code === "string"
+        ? o.code.trim()
+        : o.code != null
+          ? String(o.code)
+          : null
+    const soRaw = o.sort_order
+    const sort_order =
+      typeof soRaw === "number" && Number.isFinite(soRaw)
+        ? soRaw
+        : typeof soRaw === "string" && /^\d+$/.test(soRaw)
+          ? Number.parseInt(soRaw, 10)
+          : undefined
+    out.push({ id, name, code: code || null, sort_order })
+  }
+  out.sort(
+    (a, b) =>
+      (a.sort_order ?? 999) - (b.sort_order ?? 999) ||
+      a.name.localeCompare(b.name, "es")
+  )
+  return out
+}
 
 function unwrapData<T>(json: unknown): T {
   if (json && typeof json === "object" && "data" in json) {
@@ -156,9 +201,7 @@ export async function fetchOrderFormOptions(): Promise<OrderFormOptionsData> {
     }
   }
   return {
-    request_types: Array.isArray(raw.request_types)
-      ? (raw.request_types as OrderFormOptionsData["request_types"])
-      : [],
+    request_types: parseRequestTypesForOrderForm(raw.request_types),
     exam_types: Array.isArray(raw.exam_types)
       ? (raw.exam_types as OrderFormOptionsData["exam_types"])
       : [],
@@ -198,6 +241,12 @@ export async function fetchLaboratoryExamTypes(): Promise<ExamType[]> {
   return list
 }
 
+/**
+ * Lista de exámenes del laboratorio.
+ * Si envías `laboratory_id`, el backend suele filtrar `WHERE laboratory_id = ?`
+ * y excluye filas con `laboratory_id` null. Para ver todas las órdenes de la
+ * organización del usuario autenticado, omite `laboratory_id`.
+ */
 export async function fetchLaboratoryExams(options?: {
   laboratory_id?: number
   assigned_doctor_id?: number
@@ -309,4 +358,26 @@ export async function updateExamStatus(
   if (!res.ok) {
     throw new Error(formatExamStatusError(json))
   }
+}
+
+/** GET /api/laboratory/exams/{id} — detalle (historial de estados, observaciones, etc.) */
+export async function fetchLaboratoryExamById(
+  examId: number
+): Promise<Record<string, unknown>> {
+  const res = await fetchWithAuth(API_ENDPOINTS.laboratoryExam(examId))
+  const json = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    throw new Error(
+      (json as { message?: string }).message ??
+        "No se pudo cargar el detalle del examen"
+    )
+  }
+  const raw = unwrapData<unknown>(json)
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    return raw as Record<string, unknown>
+  }
+  if (json && typeof json === "object" && !Array.isArray(json)) {
+    return json as Record<string, unknown>
+  }
+  return {}
 }

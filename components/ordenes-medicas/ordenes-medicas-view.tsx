@@ -1,6 +1,14 @@
 "use client"
 
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react"
+import {
+  Fragment,
+  memo,
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useState,
+} from "react"
 import Link from "next/link"
 import {
   Calendar,
@@ -8,34 +16,17 @@ import {
   ChevronRight,
   CreditCard,
   Filter,
+  History,
   Loader2,
   Plus,
   Search,
-  Stethoscope,
   User,
-  UserPlus,
-  FileText,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
 import {
   Sheet,
   SheetContent,
@@ -60,30 +51,28 @@ import {
   workflowStepLabelEs,
 } from "@/lib/ordenes-medicas-types"
 import type { ExamRow } from "@/lib/laboratory-ordenes-types"
-import type { PriorityForm } from "@/lib/laboratory-ordenes-types"
+import type { LaboratoryExamApi } from "@/lib/laboratory-ordenes-types"
 import { mapExamToRow, priorityLabel } from "@/lib/laboratory-ordenes-types"
 import type { LaboratoryWorkflowStatus } from "@/lib/laboratory-ordenes-types"
 import {
-  createLaboratoryExam,
   fetchAvailableSamplesForExam,
+  fetchLaboratoryExamById,
   fetchLaboratoryExams,
-  fetchOrderFormOptions,
   fetchWorkflowStatuses,
-  lookupPatientByDocument,
   updateExamStatus,
 } from "@/lib/laboratory-ordenes-api"
-import type {
-  CreateLaboratoryExamPayload,
-  LaboratoryPatientSearchData,
-  UpdateExamStatusPayload,
-} from "@/lib/laboratory-ordenes-types"
+import {
+  extractStatusObservationLogFromExam,
+  pickExamGeneralObservations,
+} from "@/lib/laboratory-exam-status-logs"
+import type { UpdateExamStatusPayload } from "@/lib/laboratory-ordenes-types"
 import type { SampleApi } from "@/lib/samples-types"
 import { sampleLocationLine, sampleTypeDisplay } from "@/lib/samples-types"
 import { useAuth } from "@/contexts/auth-context"
 import FooterComponent from "@/components/footer/footer-component"
 import NavbarComponent from "@/components/navbar/navbar-component"
 import SidebarComponent from "@/components/sidebar/sidebar-component"
-import type { OrderFormOptionsData } from "@/lib/laboratory-ordenes-types"
+import { NuevaOrdenMedicaDialog } from "@/components/ordenes-medicas/nueva-orden-medica-dialog"
 
 const FILTER_DOT = [
   "bg-violet-600",
@@ -94,12 +83,6 @@ const FILTER_DOT = [
   "bg-emerald-400",
   "bg-sky-500",
   "bg-emerald-700",
-]
-
-const FALLBACK_PRIORITIES: { value: string; label: string }[] = [
-  { value: "normal", label: "Normal" },
-  { value: "alta", label: "Alta" },
-  { value: "urgente", label: "Urgente" },
 ]
 
 const BADGE_STYLES: { className: string; dot: string }[] = [
@@ -153,6 +136,89 @@ function formatSampleWhen(iso: string | null | undefined): string {
   }
 }
 
+const OrderExamTableRow = memo(function OrderExamTableRow({
+  row: o,
+  workflowSlugs,
+  workflowStatuses,
+  onOpenDetail,
+}: {
+  row: ExamRow
+  workflowSlugs: string[]
+  workflowStatuses: LaboratoryWorkflowStatus[]
+  onOpenDetail: (row: ExamRow) => void
+}) {
+  const b = badgeForSlug(o.statusSlug, workflowSlugs)
+  const statusLabel = workflowStepLabelEs(o.statusSlug, workflowStatuses)
+  return (
+    <TableRow
+      className="cursor-pointer hover:bg-violet-50/50"
+      onClick={() => onOpenDetail(o)}
+    >
+      <TableCell className="font-mono text-xs text-gray-600">
+        {o.orderNumber}
+      </TableCell>
+      <TableCell>
+        <div className="flex items-start gap-2">
+          <div className="rounded-full bg-violet-100 p-1.5 mt-0.5">
+            <User className="h-3.5 w-3.5 text-violet-600" />
+          </div>
+          <div>
+            <p className="font-semibold text-gray-900">{o.patientName}</p>
+            <p className="text-xs text-gray-500">{o.document}</p>
+          </div>
+        </div>
+      </TableCell>
+      <TableCell className="text-gray-800">{o.exam}</TableCell>
+      <TableCell className="text-gray-700">{o.doctor}</TableCell>
+      <TableCell>
+        <span
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium",
+            b.className
+          )}
+        >
+          <span
+            className={cn("h-1.5 w-1.5 rounded-full", b.dot)}
+          />
+          {statusLabel}
+        </span>
+      </TableCell>
+      <TableCell>
+        <span
+          className={cn(
+            "inline-flex items-center gap-1 text-xs font-medium",
+            o.paid ? "text-emerald-600" : "text-red-600"
+          )}
+        >
+          <CreditCard className="h-3.5 w-3.5" />
+          {o.paid ? "Sí" : "No"}
+        </span>
+      </TableCell>
+      <TableCell>
+        {String(o.priority).toLowerCase() === "urgente" ? (
+          <span className="rounded-md bg-red-600 px-2 py-0.5 text-xs font-semibold text-white">
+            URGENTE
+          </span>
+        ) : String(o.priority).toLowerCase() === "alta" ? (
+          <span className="rounded-md bg-amber-500 px-2 py-0.5 text-xs font-semibold text-white">
+            Alta
+          </span>
+        ) : (
+          <span className="text-gray-600 text-sm">
+            {priorityLabel(o.priority)}
+          </span>
+        )}
+      </TableCell>
+      <TableCell>
+        <span className="inline-flex items-center gap-1.5 text-sm text-gray-700">
+          <Calendar className="h-3.5 w-3.5 text-gray-400" />
+          {o.dateLabel}
+        </span>
+      </TableCell>
+    </TableRow>
+  )
+})
+
 export function OrdenesMedicasView() {
   const { user, isLoading: authLoading } = useAuth()
   const [workflowStatuses, setWorkflowStatuses] = useState<
@@ -167,13 +233,9 @@ export function OrdenesMedicasView() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
-  const [orderFormOptions, setOrderFormOptions] =
-    useState<OrderFormOptionsData | null>(null)
-  const [orderFormLoading, setOrderFormLoading] = useState(false)
-  const [orderFormError, setOrderFormError] = useState<string | null>(null)
-
   const [filter, setFilter] = useState<"Todos" | string>("Todos")
   const [search, setSearch] = useState("")
+  const deferredSearch = useDeferredValue(search)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [selectedExamId, setSelectedExamId] = useState<number | null>(null)
@@ -186,6 +248,11 @@ export function OrdenesMedicasView() {
   const [selectedInventorySampleId, setSelectedInventorySampleId] = useState<
     number | null
   >(null)
+  const [examDetail, setExamDetail] = useState<Record<string, unknown> | null>(
+    null
+  )
+  const [examDetailLoading, setExamDetailLoading] = useState(false)
+  const [examDetailError, setExamDetailError] = useState<string | null>(null)
 
   const workflowSlugs = useMemo(
     () => workflowStatuses.map((w) => w.slug),
@@ -193,26 +260,54 @@ export function OrdenesMedicasView() {
   )
 
   const reloadOrders = useCallback(async () => {
-    const list = await fetchLaboratoryExams({
-      laboratory_id: user?.laboratory?.id,
-      per_page: 100,
-    })
+    // Sin `laboratory_id`: el API filtra por organización del token. Si se envía
+    // laboratory_id y los exámenes tienen laboratory_id null, la lista queda vacía.
+    const list = await fetchLaboratoryExams({ per_page: 100 })
     setOrders(list.map(mapExamToRow))
-  }, [user?.laboratory?.id])
+  }, [])
+
+  const handleOrderCreated = useCallback(
+    async (created: LaboratoryExamApi) => {
+      await reloadOrders()
+      const row = mapExamToRow(created)
+      setFilter("Todos")
+      setSelectedExamId(row.examId)
+      setSheetOpen(true)
+    },
+    [reloadOrders]
+  )
+
+  const handleDialogActionMessage = useCallback(
+    (message: string | null) => {
+      setActionError(message)
+    },
+    []
+  )
 
   useEffect(() => {
     let cancelled = false
     async function load() {
       setLoadState("loading")
       setLoadError(null)
+      const LOAD_TIMEOUT_MS = 60_000
+      let timeoutId: ReturnType<typeof setTimeout> | undefined
+      const deadline = new Promise<never>((_, reject) => {
+        timeoutId = window.setTimeout(() => {
+          reject(
+            new Error(
+              "El servidor tardó demasiado en responder. Revisa que el API esté en marcha (p. ej. Laravel en el puerto configurado en NEXT_PUBLIC_API_URL)."
+            )
+          )
+        }, LOAD_TIMEOUT_MS)
+      })
+      const dataPromise = Promise.all([
+        fetchWorkflowStatuses(),
+        fetchLaboratoryExams({ per_page: 100 }),
+      ]).finally(() => {
+        if (timeoutId !== undefined) window.clearTimeout(timeoutId)
+      })
       try {
-        const [wf, exams] = await Promise.all([
-          fetchWorkflowStatuses(),
-          fetchLaboratoryExams({
-            laboratory_id: user?.laboratory?.id,
-            per_page: 100,
-          }),
-        ])
+        const [wf, exams] = await Promise.race([dataPromise, deadline])
         if (cancelled) return
         setWorkflowStatuses(wf)
         setOrders(exams.map(mapExamToRow))
@@ -227,132 +322,6 @@ export function OrdenesMedicasView() {
     else setLoadState("idle")
   }, [user])
 
-  /** Resumen de nombre (solo lectura si hay paciente encontrado) */
-  const [formPatientSearch, setFormPatientSearch] = useState("")
-  const [formDoc, setFormDoc] = useState("")
-  /** Resultado vigente de GET .../patients/search para este documento */
-  const [patientCtx, setPatientCtx] = useState<{
-    doc: string
-    found: boolean
-    data?: LaboratoryPatientSearchData
-  } | null>(null)
-  const [patientSearchLoading, setPatientSearchLoading] = useState(false)
-  const [patientSearchError, setPatientSearchError] = useState<string | null>(
-    null
-  )
-  const [formNewFirstName, setFormNewFirstName] = useState("")
-  const [formNewLastName, setFormNewLastName] = useState("")
-  const [formNewEmail, setFormNewEmail] = useState("")
-  const [formNewPhone, setFormNewPhone] = useState("")
-  const [formRequestTypeId, setFormRequestTypeId] = useState("")
-  const [formExamTypeId, setFormExamTypeId] = useState("")
-  const [formRequestingDoctorId, setFormRequestingDoctorId] = useState("")
-  const [formAssignedDoctorId, setFormAssignedDoctorId] = useState("")
-  const [formAssigneeId, setFormAssigneeId] = useState("")
-  const [formPriority, setFormPriority] = useState<PriorityForm>("normal")
-  const [formPaid, setFormPaid] = useState(false)
-
-  useEffect(() => {
-    if (!dialogOpen) return
-    let cancelled = false
-    setOrderFormError(null)
-    setOrderFormOptions(null)
-    setFormPatientSearch("")
-    setFormDoc("")
-    setPatientCtx(null)
-    setPatientSearchError(null)
-    setFormNewFirstName("")
-    setFormNewLastName("")
-    setFormNewEmail("")
-    setFormNewPhone("")
-    setFormRequestTypeId("")
-    setFormExamTypeId("")
-    setFormRequestingDoctorId("")
-    setFormAssignedDoctorId("")
-    setFormAssigneeId("")
-    setFormPriority("normal")
-    setFormPaid(false)
-
-    setOrderFormLoading(true)
-    fetchOrderFormOptions()
-      .then((opts) => {
-        if (cancelled) return
-        setOrderFormOptions(opts)
-        const paidDefault = opts.payment?.default_is_paid === true
-        setFormPaid(paidDefault)
-        const pri = opts.priorities.find((p) => p.value === "normal")
-          ?? opts.priorities[0]
-        if (pri?.value) {
-          setFormPriority(pri.value as PriorityForm)
-        }
-        const staffIds = opts.staff.map((s) => s.id)
-        if (user?.id && staffIds.includes(user.id)) {
-          setFormRequestingDoctorId(String(user.id))
-          setFormAssignedDoctorId(String(user.id))
-        }
-      })
-      .catch((e) => {
-        if (!cancelled) {
-          setOrderFormError(
-            e instanceof Error ? e.message : "Error al cargar el formulario"
-          )
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setOrderFormLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [dialogOpen, user?.id])
-
-  const patientDocStale =
-    patientCtx != null && formDoc.trim() !== patientCtx.doc
-
-  const patientStepOk = useMemo(() => {
-    if (!patientCtx || patientDocStale) return false
-    if (patientCtx.found) return Boolean(patientCtx.data?.patient_id)
-    return Boolean(formNewFirstName.trim() && formNewLastName.trim())
-  }, [
-    patientCtx,
-    patientDocStale,
-    formNewFirstName,
-    formNewLastName,
-  ])
-
-  async function runPatientDocumentSearch() {
-    const doc = formDoc.trim()
-    if (!doc) {
-      setPatientSearchError("Ingresa un número de documento.")
-      return
-    }
-    setPatientSearchLoading(true)
-    setPatientSearchError(null)
-    setPatientCtx(null)
-    try {
-      const r = await lookupPatientByDocument(doc)
-      setPatientCtx({ doc, found: r.found, data: r.data })
-      if (r.found && r.data) {
-        const full = [r.data.first_name, r.data.last_name]
-          .filter(Boolean)
-          .join(" ")
-          .trim()
-        setFormPatientSearch(full || "—")
-        setFormNewFirstName("")
-        setFormNewLastName("")
-      } else {
-        setFormPatientSearch("")
-      }
-    } catch (e) {
-      setPatientCtx(null)
-      setPatientSearchError(
-        e instanceof Error ? e.message : "Error al buscar paciente"
-      )
-    } finally {
-      setPatientSearchLoading(false)
-    }
-  }
-
   const counts = useMemo(() => {
     const c: Record<string, number> = {}
     for (const s of workflowSlugs) c[s] = 0
@@ -366,7 +335,7 @@ export function OrdenesMedicasView() {
   const filtered = useMemo(() => {
     let list = orders
     if (filter !== "Todos") list = list.filter((o) => o.statusSlug === filter)
-    const q = search.trim().toLowerCase()
+    const q = deferredSearch.trim().toLowerCase()
     if (q) {
       list = list.filter(
         (o) =>
@@ -378,7 +347,7 @@ export function OrdenesMedicasView() {
       )
     }
     return list
-  }, [orders, filter, search])
+  }, [orders, filter, deferredSearch])
 
   const selected = orders.find((o) => o.examId === selectedExamId) ?? null
 
@@ -488,14 +457,50 @@ export function OrdenesMedicasView() {
     selected?.assignedDoctorId,
   ])
 
-  function openDetail(row: ExamRow) {
+  const openDetail = useCallback((row: ExamRow) => {
     setSelectedExamId(row.examId)
     setStatusObservations("")
     setSelectedInventorySampleId(null)
     setAvailableSamples([])
     setSamplePickerError(null)
     setSheetOpen(true)
-  }
+  }, [])
+
+  const refreshExamDetail = useCallback(async () => {
+    if (!selectedExamId) return
+    setExamDetailLoading(true)
+    setExamDetailError(null)
+    try {
+      const data = await fetchLaboratoryExamById(selectedExamId)
+      setExamDetail(data)
+    } catch (e) {
+      setExamDetail(null)
+      setExamDetailError(
+        e instanceof Error ? e.message : "No se pudo cargar el detalle del examen"
+      )
+    } finally {
+      setExamDetailLoading(false)
+    }
+  }, [selectedExamId])
+
+  useEffect(() => {
+    if (!sheetOpen || !selectedExamId) {
+      setExamDetail(null)
+      setExamDetailError(null)
+      setExamDetailLoading(false)
+      return
+    }
+    void refreshExamDetail()
+  }, [sheetOpen, selectedExamId, refreshExamDetail])
+
+  const statusObservationLog = useMemo(
+    () => extractStatusObservationLogFromExam(examDetail),
+    [examDetail]
+  )
+  const generalExamObservations = useMemo(
+    () => pickExamGeneralObservations(examDetail),
+    [examDetail]
+  )
 
   async function advanceOrder() {
     if (!selected || !nextSlug || !canChangeStatus) return
@@ -519,6 +524,7 @@ export function OrdenesMedicasView() {
       await reloadOrders()
       setStatusObservations("")
       setSelectedInventorySampleId(null)
+      await refreshExamDetail()
     } catch (e) {
       setActionError(
         e instanceof Error ? e.message : "No se pudo avanzar el estado"
@@ -548,102 +554,12 @@ export function OrdenesMedicasView() {
     }
   }
 
-  async function createOrder() {
-    const doc = formDoc.trim()
-    if (
-      !doc ||
-      !formRequestTypeId ||
-      !formExamTypeId ||
-      !formRequestingDoctorId ||
-      !formAssignedDoctorId
-    ) {
-      setActionError(
-        "Completa documento del paciente, tipo de solicitud, examen y médicos."
-      )
-      return
-    }
-    if (!patientCtx || patientCtx.doc !== doc || patientDocStale) {
-      setActionError(
-        "Busca el paciente por documento y usa un resultado vigente antes de crear la orden."
-      )
-      return
-    }
-    if (!patientCtx.found) {
-      if (!formNewFirstName.trim() || !formNewLastName.trim()) {
-        setActionError(
-          "No hay paciente con ese documento en tu organización: completa nombre, apellido y datos del nuevo paciente."
-        )
-        return
-      }
-    }
-
-    const base: CreateLaboratoryExamPayload = {
-      patient_document: doc,
-      document_type:
-        patientCtx.found && patientCtx.data?.document_type
-          ? String(patientCtx.data.document_type)
-          : "CC",
-      exam_type_id: Number(formExamTypeId),
-      exam_date: new Date().toISOString().slice(0, 19).replace("T", " "),
-      request_type_id: Number(formRequestTypeId),
-      requesting_doctor_id: Number(formRequestingDoctorId),
-      assigned_doctor_id: Number(formAssignedDoctorId),
-      assignee_user_id: formAssigneeId ? Number(formAssigneeId) : null,
-      priority: formPriority,
-      is_paid: formPaid,
-    }
-
-    const payload: CreateLaboratoryExamPayload =
-      patientCtx.found && patientCtx.data
-        ? {
-            ...base,
-            patient_id: patientCtx.data.patient_id,
-          }
-        : {
-            ...base,
-            patient_first_name: formNewFirstName.trim(),
-            patient_last_name: formNewLastName.trim(),
-            patient_email: formNewEmail.trim() || undefined,
-            patient_phone: formNewPhone.trim() || undefined,
-          }
-
-    setSaving(true)
-    setActionError(null)
-    try {
-      const created = await createLaboratoryExam(payload)
-      await reloadOrders()
-      const row = mapExamToRow(created)
-      setDialogOpen(false)
-      setFormPatientSearch("")
-      setFormDoc("")
-      setPatientCtx(null)
-      setFormNewFirstName("")
-      setFormNewLastName("")
-      setFormNewEmail("")
-      setFormNewPhone("")
-      setFormRequestTypeId("")
-      setFormExamTypeId("")
-      setFormAssigneeId("")
-      setFormPriority("normal")
-      setFormPaid(false)
-      setFilter("Todos")
-      setSelectedExamId(row.examId)
-      setSheetOpen(true)
-    } catch (e) {
-      setActionError(
-        e instanceof Error ? e.message : "No se pudo crear la orden"
-      )
-    } finally {
-      setSaving(false)
-    }
-  }
-
   const filterKeys: ("Todos" | string)[] = useMemo(
     () => ["Todos", ...workflowSlugs],
     [workflowSlugs]
   )
 
-  if (authLoading || loadState === "loading" || loadState === "idle") {
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-[#eef0f4] flex flex-col">
         <div className="flex flex-1 min-w-0">
@@ -674,6 +590,23 @@ export function OrdenesMedicasView() {
                   Inicia sesión como laboratorio para gestionar órdenes médicas.
                 </AlertDescription>
               </Alert>
+            </main>
+          </div>
+        </div>
+        <FooterComponent />
+      </div>
+    )
+  }
+
+  if (loadState === "loading" || loadState === "idle") {
+    return (
+      <div className="min-h-screen bg-[#eef0f4] flex flex-col">
+        <div className="flex flex-1 min-w-0">
+          <SidebarComponent />
+          <div className="flex-1 flex flex-col min-w-0">
+            <NavbarComponent />
+            <main className="flex-1 flex items-center justify-center p-8">
+              <Loader2 className="h-10 w-10 animate-spin text-violet-600" />
             </main>
           </div>
         </div>
@@ -824,89 +757,15 @@ export function OrdenesMedicasView() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filtered.map((o) => {
-                      const b = badgeForSlug(o.statusSlug, workflowSlugs)
-                      const statusLabel = workflowStepLabelEs(
-                        o.statusSlug,
-                        workflowStatuses
-                      )
-                      return (
-                        <TableRow
-                          key={o.examId}
-                          className="cursor-pointer hover:bg-violet-50/50"
-                          onClick={() => openDetail(o)}
-                        >
-                          <TableCell className="font-mono text-xs text-gray-600">
-                            {o.orderNumber}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-start gap-2">
-                              <div className="rounded-full bg-violet-100 p-1.5 mt-0.5">
-                                <User className="h-3.5 w-3.5 text-violet-600" />
-                              </div>
-                              <div>
-                                <p className="font-semibold text-gray-900">
-                                  {o.patientName}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  {o.document}
-                                </p>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-gray-800">{o.exam}</TableCell>
-                          <TableCell className="text-gray-700">{o.doctor}</TableCell>
-                          <TableCell>
-                            <span
-                              className={cn(
-                                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium",
-                                b.className
-                              )}
-                            >
-                              <span
-                                className={cn(
-                                  "h-1.5 w-1.5 rounded-full",
-                                  b.dot
-                                )}
-                              />
-                              {statusLabel}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <span
-                              className={cn(
-                                "inline-flex items-center gap-1 text-xs font-medium",
-                                o.paid ? "text-emerald-600" : "text-red-600"
-                              )}
-                            >
-                              <CreditCard className="h-3.5 w-3.5" />
-                              {o.paid ? "Sí" : "No"}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            {String(o.priority).toLowerCase() === "urgente" ? (
-                              <span className="rounded-md bg-red-600 px-2 py-0.5 text-xs font-semibold text-white">
-                                URGENTE
-                              </span>
-                            ) : String(o.priority).toLowerCase() === "alta" ? (
-                              <span className="rounded-md bg-amber-500 px-2 py-0.5 text-xs font-semibold text-white">
-                                Alta
-                              </span>
-                            ) : (
-                              <span className="text-gray-600 text-sm">
-                                {priorityLabel(o.priority)}
-                              </span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <span className="inline-flex items-center gap-1.5 text-sm text-gray-700">
-                              <Calendar className="h-3.5 w-3.5 text-gray-400" />
-                              {o.dateLabel}
-                            </span>
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })}
+                    {filtered.map((o) => (
+                      <OrderExamTableRow
+                        key={o.examId}
+                        row={o}
+                        workflowSlugs={workflowSlugs}
+                        workflowStatuses={workflowStatuses}
+                        onOpenDetail={openDetail}
+                      />
+                    ))}
                   </TableBody>
                 </Table>
                 {filtered.length === 0 && (
@@ -921,384 +780,39 @@ export function OrdenesMedicasView() {
       </div>
       <FooterComponent />
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg md:max-w-2xl gap-0 p-0 overflow-hidden">
-          <div className="p-6 pb-4 border-b border-gray-100">
-            <DialogHeader className="flex flex-row items-center gap-3 space-y-0 text-left">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-600 text-white">
-                <Plus className="h-5 w-5" />
-              </div>
-              <div>
-                <DialogTitle className="text-xl">
-                  Nueva Orden Médica
-                </DialogTitle>
-              </div>
-            </DialogHeader>
-          </div>
-          <div className="relative p-6 space-y-6 max-h-[70vh] overflow-y-auto">
-            {orderFormLoading && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80 rounded-lg">
-                <Loader2 className="h-10 w-10 animate-spin text-violet-600" />
-              </div>
-            )}
-            {orderFormError && (
-              <Alert variant="destructive">
-                <AlertTitle>No se cargaron las opciones</AlertTitle>
-                <AlertDescription>{orderFormError}</AlertDescription>
-              </Alert>
-            )}
-            {orderFormOptions &&
-              orderFormOptions.request_types.length === 0 && (
-                <Alert>
-                  <AlertTitle>Sin tipos de solicitud</AlertTitle>
-                  <AlertDescription>
-                    Crea tipos con{" "}
-                    <code className="text-xs">POST /api/laboratory/request-types</code>{" "}
-                    antes de generar órdenes.
-                  </AlertDescription>
-                </Alert>
-              )}
-            {orderFormOptions && orderFormOptions.exam_types.length === 0 && (
-              <Alert>
-                <AlertTitle>Sin tipos de examen</AlertTitle>
-                <AlertDescription>
-                  Alta los tipos de examen en el flujo habitual del laboratorio;
-                  el backend no inventa listas vacías.
-                </AlertDescription>
-              </Alert>
-            )}
-            <section className="space-y-3">
-              <div className="flex items-center gap-2 text-violet-700 font-medium text-sm">
-                <User className="h-4 w-4" />
-                Paciente
-              </div>
-              <p className="text-xs text-gray-500">
-                Busca por documento en tu organización. Si no existe, podrás
-                registrar los datos del nuevo paciente.
-              </p>
-              {patientSearchError && (
-                <Alert variant="destructive" className="py-2">
-                  <AlertDescription>{patientSearchError}</AlertDescription>
-                </Alert>
-              )}
-              <div className="flex flex-col sm:flex-row gap-2">
-                <div className="space-y-2 flex-1">
-                  <Label>Documento</Label>
-                  <Input
-                    placeholder="Número de documento"
-                    value={formDoc}
-                    onChange={(e) => {
-                      setFormDoc(e.target.value)
-                      setPatientSearchError(null)
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault()
-                        runPatientDocumentSearch()
-                      }
-                    }}
-                    disabled={orderFormLoading}
-                  />
-                </div>
-                <div className="flex items-end">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="w-full sm:w-auto"
-                    onClick={runPatientDocumentSearch}
-                    disabled={orderFormLoading || patientSearchLoading}
-                  >
-                    {patientSearchLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <>
-                        <Search className="h-4 w-4 mr-2" />
-                        Buscar
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-              {patientDocStale && (
-                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-md px-3 py-2">
-                  El documento cambió respecto a la última búsqueda. Pulsa{" "}
-                  <strong>Buscar</strong> de nuevo.
-                </p>
-              )}
-              {patientCtx &&
-                !patientDocStale &&
-                patientCtx.found &&
-                patientCtx.data && (
-                  <div className="rounded-lg border border-emerald-200 bg-emerald-50/80 p-3 space-y-1 text-sm">
-                    <p className="font-semibold text-emerald-900">
-                      Paciente en tu organización
-                    </p>
-                    <p className="text-gray-800">
-                      <span className="text-gray-500">Nombre: </span>
-                      {formPatientSearch || "—"}
-                    </p>
-                    <p className="text-gray-800">
-                      <span className="text-gray-500">Documento: </span>
-                      {patientCtx.data.document_type ?? "CC"}{" "}
-                      {patientCtx.data.document_number ?? formDoc.trim()}
-                    </p>
-                    {(patientCtx.data.phone || patientCtx.data.email) && (
-                      <p className="text-gray-700 text-xs">
-                        {patientCtx.data.phone && (
-                          <span>Tel: {patientCtx.data.phone} </span>
-                        )}
-                        {patientCtx.data.email && (
-                          <span>· {patientCtx.data.email}</span>
-                        )}
-                      </p>
-                    )}
-                  </div>
-                )}
-              {patientCtx && !patientDocStale && !patientCtx.found && (
-                <div className="space-y-3 rounded-lg border border-violet-200 bg-violet-50/50 p-4">
-                  <div className="flex items-center gap-2 text-violet-800 font-medium text-sm">
-                    <UserPlus className="h-4 w-4" />
-                    Nuevo paciente en tu organización
-                  </div>
-                  <p className="text-xs text-gray-600">
-                    No hay paciente con este documento. Completa los datos para
-                    darlo de alta al crear la orden.
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label>Nombre</Label>
-                      <Input
-                        value={formNewFirstName}
-                        onChange={(e) => setFormNewFirstName(e.target.value)}
-                        placeholder="Nombre"
-                        disabled={orderFormLoading}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Apellido</Label>
-                      <Input
-                        value={formNewLastName}
-                        onChange={(e) => setFormNewLastName(e.target.value)}
-                        placeholder="Apellido"
-                        disabled={orderFormLoading}
-                      />
-                    </div>
-                    <div className="space-y-2 sm:col-span-2">
-                      <Label>Email (opcional)</Label>
-                      <Input
-                        type="email"
-                        value={formNewEmail}
-                        onChange={(e) => setFormNewEmail(e.target.value)}
-                        placeholder="correo@ejemplo.com"
-                        disabled={orderFormLoading}
-                      />
-                    </div>
-                    <div className="space-y-2 sm:col-span-2">
-                      <Label>Teléfono (opcional)</Label>
-                      <Input
-                        value={formNewPhone}
-                        onChange={(e) => setFormNewPhone(e.target.value)}
-                        placeholder="Teléfono"
-                        disabled={orderFormLoading}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </section>
-
-            <section className="space-y-3">
-              <div className="flex items-center gap-2 text-violet-700 font-medium text-sm">
-                <FileText className="h-4 w-4" />
-                Información de la Orden
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Tipo de Solicitud</Label>
-                  <Select
-                    value={formRequestTypeId || undefined}
-                    onValueChange={setFormRequestTypeId}
-                    disabled={orderFormLoading}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Seleccionar tipo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(orderFormOptions?.request_types ?? []).map((t) => (
-                        <SelectItem key={t.id} value={String(t.id)}>
-                          {t.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Tipo de Examen</Label>
-                  <Select
-                    value={formExamTypeId || undefined}
-                    onValueChange={setFormExamTypeId}
-                    disabled={orderFormLoading}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Seleccionar examen" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(orderFormOptions?.exam_types ?? []).map((t) => (
-                        <SelectItem key={t.id} value={String(t.id)}>
-                          {t.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </section>
-
-            <section className="space-y-3">
-              <div className="flex items-center gap-2 text-violet-700 font-medium text-sm">
-                <Stethoscope className="h-4 w-4" />
-                Asignación
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Médico Solicitante</Label>
-                  <Select
-                    value={formRequestingDoctorId || undefined}
-                    onValueChange={setFormRequestingDoctorId}
-                    disabled={orderFormLoading}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Seleccionar médico" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(orderFormOptions?.staff ?? []).map((m) => (
-                        <SelectItem key={m.id} value={String(m.id)}>
-                          {m.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Médico asignado (flujo)</Label>
-                  <Select
-                    value={formAssignedDoctorId || undefined}
-                    onValueChange={setFormAssignedDoctorId}
-                    disabled={orderFormLoading}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Quién avanza estados" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(orderFormOptions?.staff ?? []).map((m) => (
-                        <SelectItem key={`as-${m.id}`} value={String(m.id)}>
-                          {m.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <Label>Asignar a (opcional)</Label>
-                  <Select
-                    value={formAssigneeId || undefined}
-                    onValueChange={setFormAssigneeId}
-                    disabled={orderFormLoading}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Bacteriólogo / Auxiliar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(orderFormOptions?.staff ?? []).map((m) => (
-                        <SelectItem key={`a-${m.id}`} value={String(m.id)}>
-                          {m.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-                <div className="space-y-2">
-                  <Label>Prioridad</Label>
-                  <Select
-                    value={formPriority}
-                    onValueChange={(v) => setFormPriority(v as PriorityForm)}
-                    disabled={orderFormLoading}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(
-                        orderFormOptions?.priorities?.length
-                          ? orderFormOptions.priorities
-                          : FALLBACK_PRIORITIES
-                      ).map((p) => (
-                        <SelectItem key={p.value} value={p.value}>
-                          {p.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center justify-between rounded-lg border border-gray-200 p-3 gap-3">
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="h-4 w-4 text-gray-500" />
-                    <Label className="text-sm font-normal">Estado de Pago</Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600">
-                      {formPaid ? "Pagado" : "Sin Pagar"}
-                    </span>
-                    <Switch checked={formPaid} onCheckedChange={setFormPaid} />
-                  </div>
-                </div>
-              </div>
-            </section>
-          </div>
-          <DialogFooter className="p-6 pt-2 border-t border-gray-100 bg-gray-50/80">
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button
-              className="bg-violet-600 hover:bg-violet-700"
-              onClick={createOrder}
-              disabled={
-                saving ||
-                orderFormLoading ||
-                patientSearchLoading ||
-                !orderFormOptions?.request_types?.length ||
-                !orderFormOptions?.exam_types?.length ||
-                !orderFormOptions?.staff?.length ||
-                !patientStepOk
-              }
-            >
-              {saving ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Crear Orden
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <NuevaOrdenMedicaDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        user={user}
+        onOrderCreated={handleOrderCreated}
+        onActionMessage={handleDialogActionMessage}
+      />
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent
           side="right"
           className="w-full sm:max-w-lg border-l bg-[#f7f8fb] p-0 gap-0 overflow-y-auto"
         >
+          <SheetTitle className="sr-only">
+            {selected
+              ? `Detalle de orden médica, folio ${selected.orderNumber}`
+              : "Detalle de orden médica"}
+          </SheetTitle>
           {selected && (
             <>
               <SheetHeader className="p-6 pb-4 border-b border-gray-200 bg-white">
-                <p className="text-xs text-gray-500 font-mono">
+                <p
+                  className="text-xs text-gray-500 font-mono"
+                  aria-hidden
+                >
                   {selected.orderNumber}
                 </p>
-                <SheetTitle className="text-xl">Detalle de Orden</SheetTitle>
+                <p
+                  className="text-xl font-semibold text-foreground tracking-tight"
+                  aria-hidden
+                >
+                  Detalle de Orden
+                </p>
               </SheetHeader>
               <div className="p-6 space-y-5">
                 <div className="space-y-2">
@@ -1311,6 +825,81 @@ export function OrdenesMedicasView() {
                     onChange={(e) => setStatusObservations(e.target.value)}
                     className="min-h-[72px] bg-white"
                   />
+                </div>
+
+                <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                    <History className="h-4 w-4 shrink-0 text-violet-600" />
+                    Historial de observaciones
+                  </div>
+                  {examDetailLoading && (
+                    <div className="flex items-center gap-2 text-sm text-gray-500 py-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-violet-600" />
+                      Cargando historial…
+                    </div>
+                  )}
+                  {examDetailError && (
+                    <Alert variant="destructive" className="border-red-200 py-2">
+                      <AlertDescription className="text-sm">
+                        {examDetailError}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  {!examDetailLoading &&
+                    !examDetailError &&
+                    generalExamObservations && (
+                      <div className="rounded-lg border border-gray-100 bg-gray-50/80 p-3 text-sm">
+                        <p className="text-xs font-medium text-gray-500 mb-1">
+                          Notas del examen
+                        </p>
+                        <p className="text-gray-800 whitespace-pre-wrap">
+                          {generalExamObservations}
+                        </p>
+                      </div>
+                    )}
+                  {!examDetailLoading &&
+                    !examDetailError &&
+                    statusObservationLog.length === 0 &&
+                    !generalExamObservations && (
+                      <p className="text-xs text-gray-500">
+                        Sin observaciones guardadas aún. Si el detalle del examen
+                        expone historial (p. ej.{" "}
+                        <code className="text-[11px]">status_logs</code>), aparecerán
+                        aquí tras cada cambio de estado.
+                      </p>
+                    )}
+                  {statusObservationLog.length > 0 && (
+                    <ul className="space-y-3 max-h-64 overflow-y-auto pr-1">
+                      {statusObservationLog.map((entry, idx) => (
+                        <li
+                          key={`${entry.occurredAt ?? "t"}-${idx}-${entry.statusSlug}`}
+                          className="rounded-lg border border-violet-100 bg-violet-50/50 p-3 text-sm"
+                        >
+                          <div className="flex flex-wrap items-baseline justify-between gap-2 gap-y-1">
+                            <span className="font-medium text-violet-900">
+                              {workflowStepLabelEs(
+                                entry.statusSlug,
+                                workflowStatuses
+                              )}
+                            </span>
+                            {entry.occurredAt && (
+                              <span className="text-xs text-gray-500 tabular-nums">
+                                {formatSampleWhen(entry.occurredAt)}
+                              </span>
+                            )}
+                          </div>
+                          {entry.actorName && (
+                            <p className="text-xs text-gray-600 mt-1">
+                              {entry.actorName}
+                            </p>
+                          )}
+                          <p className="text-gray-800 mt-2 whitespace-pre-wrap leading-snug">
+                            {entry.observations}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
 
                 {needsInventorySampleForToma && canChangeStatus && (

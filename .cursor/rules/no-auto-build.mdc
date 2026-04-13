@@ -1,0 +1,10 @@
+---
+description: No ejecutar build de producción salvo petición explícita del usuario
+alwaysApply: true
+---
+
+# Builds y verificación
+
+- **No ejecutes** `npm run build` (ni equivalentes como `pnpm build` / `yarn build`) después de cambios rutinarios, refactors o mientras el usuario prueba con `npm run dev`.
+- Ejecuta `npm run build` **solo** si el usuario lo pide de forma explícita (p. ej. “corre el build”, “verifica el build de producción”).
+- Para validar cambios sin un build completo, prioriza lo que el usuario indique o, si hace falta algo rápido, comandos más ligeros que existan en el proyecto (p. ej. lint o typecheck). Si no hay comando claro, **no inventes** ejecuciones largas: limita a lo pedido en el mensaje.
